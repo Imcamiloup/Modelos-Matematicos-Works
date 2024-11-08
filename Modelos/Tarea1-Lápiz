@@ -1,20 +1,28 @@
 ### A Pluto.jl notebook ###
-# v0.19.39
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ beca5a3c-1f0b-44ce-86e2-74c509b106ba
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
+# ╔═╡ ef033e02-2d77-4384-8bb6-3c5ce0cf3533
+using XLSX, Plots, PlotlyJS, Plots.PlotMeasures
+
+# ╔═╡ aabdf0db-a661-4623-840e-4bf808f19d0d
 begin
-	using XLSX, Plots, PlotlyJS, Plots.PlotMeasures
-	years = 2017:2023
-	production_estimates = [850, 1150, 1100, 1000, 1150, 1680, 1600]
-	
-	Plots.bar(years, production_estimates, 
-	    xlabel="Año", ylabel="Producción (en miles de toneladas métricas)",
-	    title="Producción global de grafito por año (2017-2023)",
-	    legend=false, left_margin = [20mm 10mm], right_margin = [0mm 15mm], bottom_margin = 10px, top_margin=35px, size=(400,200),
-     titlefontsize=9, guidefontsize=6, tickfontsize=6)
+    using PlutoUI
+
+    # Deslizador para el parámetro radio
+    @bind radio Slider(1:0.1:10, show_value=true) 
 end
 
 # ╔═╡ 178333f4-9a6b-11ef-25cc-45b63f8b085c
@@ -31,13 +39,17 @@ md"#### Integrantes:
 
 # ╔═╡ bc95d402-d90b-4fbf-a6ce-631fd300e2fa
 html"""
-<h2 style="text-align: center;">Contexto del problema</h1>
+<h2 style="text-align: center;">1. Contexto del problema</h1>
 """
 
 # ╔═╡ f469c510-5216-4959-b4d5-ecbbcaf7e645
-md"""
-El lápiz, una herramienta aparentemente sencilla pero profundamente esencial, encapsula en su forma básica la alquimia de la escritura y el dibujo. ¿Cuántas ideas y resultados han podido ser plasmados sobre el papel gracias al lápiz? En su interior se encuentra una mina de grafito mezclado con arcilla, su dureza y tonalidad varía en una mezcla de proporciones precisas entre estos materiales. 
+html"""
+<p style="text-align: justify;">
+El lápiz, una herramienta aparentemente sencilla pero profundamente esencial, encapsula en su forma básica la alquimia de la escritura y el dibujo. ¿Cuántas ideas y resultados han podido ser plasmados sobre el papel gracias al lápiz? En su interior se encuentra una mina de grafito mezclado con arcilla, su dureza y tonalidad varía en una mezcla de proporciones precisas entre estos materiales.
+</p>
 """
+
+
 
 # ╔═╡ 80186e2c-d63d-43ae-bd7b-a5a940c30e3d
 html"""
@@ -48,13 +60,20 @@ html"""
 """
 
 # ╔═╡ 0c325089-3a1e-4b69-b5e1-1e60dfcfa835
-md"""
-Es así como el proceso de dar vida a un lápiz combina ciencia y arte: polvo de grafito y arcilla se mezclan con agua y se moldean en largas minas que se cuecen en hornos especiales. Una vez endurecidas, estas minas se sumergen en aceite o cera, lo que permite que cada trazo fluya con suavidad. La madera, cuidadosamente ranurada, alberga estas minas en su interior (esto no siempre fue [así](https://es.wikipedia.org/wiki/L%C3%A1piz)), y una vez ensambladas, se cortan, barnizan o pintan para darles su acabado final. 
+
+
+html"""
+<p style="text-align: justify;">
+Es así como el proceso de dar vida a un lápiz combina ciencia y arte: polvo de grafito y arcilla se mezclan con agua y se moldean en largas minas que se cuecen en hornos especiales. Una vez endurecidas, estas minas se sumergen en aceite o cera, lo que permite que cada trazo fluya con suavidad. La madera, cuidadosamente ranurada, alberga estas minas en su interior (esto no siempre fue <a href="https://es.wikipedia.org/wiki/L%C3%A1piz">así</a>) y una vez ensambladas, se cortan, barnizan o pintan para darles su acabado final.
+</p>
 """
 
 # ╔═╡ 85a5f990-7fe7-4052-b519-ff9c8b9aaac5
-md"""
+
+html"""
+<p style="text-align: justify;">
 Estamos acostumbrados a usar el sistema de letras y números que nos indica el carácter de un lápiz: "H" representa la dureza, "B" la suavidad y negrura del trazo, y los números definen el grado.
+</p>
 """
 
 # ╔═╡ 2a7bf219-b41a-4422-9728-ae83c9cc29de
@@ -66,8 +85,10 @@ html"""
 """
 
 # ╔═╡ 85de7a2e-f4ed-47f9-8246-3711e4e8c8a2
-md"""
+html"""
+<p style="text-align: justify;">
 En contraste con los lápices de grafito, la mina de los lápices de colores contiene pigmentos de color combinados con aglutinantes (sustancias que albergan los pigmentos) como cera o aceite lo cual permite una amplia gama de colores y tonalidades.
+</p>
 """
 
 # ╔═╡ f5d9e74c-16e3-4456-a4d8-50100bc52f75
@@ -79,8 +100,10 @@ html"""
 """
 
 # ╔═╡ 49a5f99b-8c03-41a6-b9bb-dac4a3364a2e
-md"""
+html"""
+<p style="text-align: justify;">
 Así como el diamante y el grafeno, el grafito es una forma alotrópica del carbono (tiene una estructura particular de dicho elemento), compuesta por capas de átomos de carbono que pueden deslizarse fácilmente entre sí, lo que lo convierte en un mineral muy blando (de allí la necesidad de recubrir las minas con materiales más duros como la madera). Es un mineral tan versátil que puede estar tanto en la punta de los lápices como en reactores nucleares.
+</p>
 """
 
 # ╔═╡ 42651f7f-321e-4d01-bc4c-b45329cb6f87
@@ -92,18 +115,26 @@ html"""
 """
 
 # ╔═╡ 76ac53da-57b1-470f-b5f2-c9eaa5a274cf
-md"""
+html"""
+<p style="text-align: justify;">
 El grafito se puede encontrar de manera natural variando en el tamaño de sus escamas --en la industria así se le llama a las capas de átomos de carbón del mineral-. También se puede obtener de manera artificial, sin embargo producir este tipo de grafito puede ser hasta diez veces más costoso que el grafito natural [6].
 
-En particular, para la elaboración de minas de lápiz se utiliza el grafito natural, específicamente un tipo de grafito llamado amorfo cuyo tamaño de escamas es muy pequeño. 
+<p></p>
 
+En particular, para la elaboración de minas de lápiz se utiliza el grafito natural, específicamente un tipo de grafito llamado amorfo cuyo tamaño de escamas es muy pequeño. 
+</p>
 """
 
 # ╔═╡ 51955a12-b692-4563-a627-bfc6672c675e
-md"""
+
+html"""
+<p style="text-align: justify;">
 Los primeros usos del grafito datan de la Edad Neolítica, cuando se utilizaba como pigmento para pintura, pero desde su redescubrimiento en Inglaterra alrededor de 1565, sus aplicaciones han crecido considerablemente. Entre las numerosas aplicaciones del grafito encontramos la fabricación de electrodos, baterías y lubricantes (debido a la presencia de electrones entre las capas de átomos de carbono, el grafito es un buen conductor de electricidad). 
 
+<p></p>
+
 A continuación podemos ver los usos globales que se le dieron al grafito en el año 2021 [7]:
+</p>
 """
 
 # ╔═╡ ecb5fbc7-d605-450c-91b0-805a2c0d65da
@@ -116,18 +147,37 @@ html"""
 """
 
 # ╔═╡ df24a32f-0d27-43c6-b9de-4f4dd6db0054
-md"""
+html"""
+<p style="text-align: justify;">
 De hecho, gracias a su papel en el almacenamiento de energía y a la reciente transición hacia fuentes más limpias, el Banco Mundial prevé que la demanda de grafito aumente en un 500% para el año 2050 [2]. Similar al litio, el grafito se ha convertido en un componente clave en la fabricación de baterías para vehículos eléctricos, ocupando un lugar central en el desarrollo de tecnologías sostenibles.
+</p>
 """
 
 # ╔═╡ 83158cfb-02de-4a7e-a421-bbb81ed88460
-md"""
+html"""
+<p style="text-align: justify;">
 La producción de grafito natural implica costos asociados a la extracción, procesamiento y transporte. En el año 2022 se observó un aumento en la producción de grafito natural del 46% con respecto al año anterior [5]:
+</p>
 """
 
+# ╔═╡ beca5a3c-1f0b-44ce-86e2-74c509b106ba
+begin
+	years = 2017:2023
+	production_estimates = [850, 1150, 1100, 1000, 1150, 1680, 1600]
+	
+	Plots.bar(years, production_estimates, 
+	    xlabel="Año", ylabel="Producción (en miles de toneladas métricas)",
+	    title="Producción global de grafito por año (2017-2023)",
+	    legend=false, 
+		left_margin = [20mm 10mm], right_margin = [0mm 15mm], bottom_margin = 20px, top_margin=35px, size=(400,200),
+     	titlefontsize=9, guidefontsize=6, tickfontsize=6)
+end
+
 # ╔═╡ 23246c70-59d0-46f8-90b0-df48a11e86e1
-md"""
+html"""
+<p style="text-align: justify;">
 A nivel mundial, China es el principal productor, aportando aproximadamente el 77% de la producción total en 2023, con un volumen de mercado total estimado de 1,6 millones de toneladas métricas [3]:
+</p>
 """
 
 # ╔═╡ 1da8d346-2642-4b84-b627-88618b6639cb
@@ -143,15 +193,21 @@ begin
 	Plots.bar(x_data, y_data, permute=(:x,:y), xflip=true, 
           xlabel="País", ylabel="Producción (en 1,000 toneladas métricas)",
           title="Producción global de grafito por país - 2023", 
-          legend=false, left_margin = [20mm 10mm], right_margin = [0mm 15mm], bottom_margin = 10px, top_margin=35px, size=(500,300),
-     titlefontsize=10, guidefontsize=8, tickfontsize=6)
+          legend=false, left_margin = [10mm 10mm], right_margin = [0mm 15mm], 				  bottom_margin = 10px, top_margin=35px, size=(600,400),
+     	  titlefontsize=10, guidefontsize=8, tickfontsize=6)
 end
 
 # ╔═╡ 235427aa-8141-4bf5-b389-26933efff8cb
-md"""
+html"""
+<p style="text-align: justify;">
 Los precios del grafito natural dependen de factores como el contenido de grafito, el tamaño de las escamas y el nivel de impurezas. Al ser el mayor productor mundial, China tiene una influencia considerable en los precios internacionales, los cuales suelen ser establecidos por grandes compradores de alto volumen y tienden a ser conservadores [7].
+</p>
 
+<p></p>
+
+<p style="text-align: justify;">
 Para darnos una idea, en 2022 el costo promedio por tonelada de grafito natural importado a Estados Unidos fue de 2135 dólares [10], esto incluyendo todos los tipos de grafito, que por tonelada varían desde los 500 dólares para el tipo con escamas más finas, hasta los 2300 dólares para el tipo con escamas más grandes [8].
+</p>
 """
 
 # ╔═╡ 4adecc12-63e3-4978-a8f3-3d1811bc47f7
@@ -163,8 +219,10 @@ html"""
 """
 
 # ╔═╡ 09f473f7-1bc3-43cd-a2ae-ba014fab9818
-md"""
+html"""
+<p style="text-align: justify;">
 Con estos datos, podemos estimar que al menos en el año 2022, la industria del grafito natural movió al rededor de 3000 millones de dólares. En este mismo año, aproximadamente el 44% del consumo total correspondió al grafito natural. Suramérica consume solo el 5% del grafito natural global y cerca del 2% del grafito sintético [7], Colombia importó 887 mil dólares en grafito natural [11].
+</p>
 """
 
 # ╔═╡ 0fbd182f-3af6-4ae6-85fc-ebbeecceba90
@@ -176,18 +234,25 @@ html"""
 """
 
 # ╔═╡ 60925461-42f6-4ce0-b88b-d7994d82760e
-md"""
+html"""
+<p style="text-align: justify;">
 Resumiendo lo anterior, el grafito es un recurso clave tanto en aplicaciones cotidianas, como en la escritura con lápices, como en tecnologías avanzadas y sostenibles, incluyendo las baterías de vehículos eléctricos y otros sistemas de almacenamiento de energía. Dado su rol en el contexto de la transición energética, la demanda de grafito sigue en aumento, proyectándose un crecimiento significativo en los próximos años. Esto hace que cada gramo de grafito cobre relevancia, impulsando la necesidad de minimizar su desperdicio para asegurar un uso más eficiente y sostenible.
+</p>
 """
 
 # ╔═╡ 75580286-8d82-4929-a455-1f64a39aee42
-md"""
-En este sentido, **minimizar las pérdidas de grafito en todos los niveles, incluso en algo tan cotidiano como el afilado de un lápiz, es un paso hacia una administración más sostenible de los recursos volviéndolo un  problema relevante**.
+html"""
+<p style="text-align: justify;">
+En este sentido, 
+<b> minimizar las pérdidas de grafito en todos los niveles, incluso en algo tan cotidiano como el afilado de un lápiz, es un paso hacia una administración más sostenible de los recursos volviéndolo un  problema relevante </b>.
+</p>
 """
 
 # ╔═╡ 12a1ed5d-9cfa-41bd-b8ef-49f94c95e2ff
-md"""
+html"""
+<p style="text-align: justify;">
 Se estima que el mercado de lápices de grafito mueve aproximadamente 8,5 millones de dólares anuales en nuestro país, con una venta estimada de 120 millones de unidades [12]. Empresas como Faber-Castell reportan ventas de más de 10 millones de lápices de grafito al año en el país. En el mundo, cerca de 14 mil millones de unidades son fabricadas anualmente [13].
+</p>
 """
 
 # ╔═╡ ec33c72b-9ef9-4a41-82cb-dcf29be264d6
@@ -196,6 +261,282 @@ En este ejercicio, abordaremos el desafío de cuantificar el desperdicio de graf
 """
 
 # ╔═╡ 19e5aefe-5813-44f4-9223-0bb34cf206a0
+md"""
+---
+"""
+
+# ╔═╡ 07564003-04d1-41fa-b0af-022f70c09cf0
+html"""
+<h2 style="text-align: center;">2. Desarrollo y ajuste del problema</h2>
+"""
+
+# ╔═╡ c4248a42-f4dd-4b8e-93cd-d0298b7b3a15
+html"""
+	<h4 style="text-align: begin;">2.1. Desarrollo y ajuste del problema</h4>
+"""
+
+# ╔═╡ 1d285017-d01a-4ab0-b108-a06925f91c6a
+html"""
+
+<p style="text-align: justify;">
+    - Asumiremos que el lápiz es cilíndrico. Además, la mina dentro de este es, a su vez, cilíndrica <em>(Ver imagen 1)</em>. El lápiz cuenta con un radio <strong>R</strong>, mientras que la mina tiene un radio <strong>r</strong> tal que <strong>R &gt; r</strong>.
+</p>
+<p style="text-align: justify;">
+    - Después de sacar punta al lápiz, asumiremos que la punta resulta en un cono <em>(Ver imagen 2)</em>. Por el momento, no es necesario conocer de antemano la altura de este cono.
+</p>
+<p style="text-align: justify;">
+    - Al momento de sacar punta al lápiz, el sacapuntas cuenta con una inclinación en un ángulo &alpha; <em>(Ver imagen 3)</em>.
+</p>
+
+
+
+"""
+
+# ╔═╡ e7ce99c3-07cc-471e-92b0-6b3dcdc19ce3
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/PJyt8cMX/img1.jpg" alt="Imagen 1" width="300" />
+  <p style="color: gray; font-size: 14px;">Imagen 1</p>
+</div>
+
+
+"""
+
+# ╔═╡ 14d07755-8076-456f-a0dc-ba9c62f4736c
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/HxJZM74V/img2.jpg" alt="Imagen 2" width="600" />
+<p style="color: gray; font-size: 14px;">Imagen 2</p>
+</div>
+
+"""
+
+# ╔═╡ 291b9e72-a2dc-4306-a8d2-2af433d817a5
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/fbyB40PB/img3.jpg" alt="Imagen 3" width="600" />
+<p style="color: gray; font-size: 14px;">Imagen 3</p>
+</div>
+
+"""
+
+# ╔═╡ 831ce2bc-f3eb-4850-b289-c85e57111373
+html"""
+	<h4 style="text-align: begin;">2.2. Analisis</h4>
+"""
+
+# ╔═╡ ea427486-f4e9-450f-abe0-b0d7de544fa4
+html"""
+<p style="text-align: justify;">
+Al momento de sacar punta a un lápiz, se va cortando parte del área superficial de la madera. Al momento de hacerlo, esta punta se va aproximando a la forma de un cono. La razón por la que sucede esto es porque al momento de sacar punta el radio inicial <strong>R</strong> se va reduciendo uniformemente en la parte superior del lápiz. Este proceso continúa hasta que se cumple que <strong>R' = r</strong>, donde <strong>R'</strong> es el radio <strong>R</strong> reducido. Si hiciéramos una pausa en este momento, podríamos ver cómo la mina conserva su forma cilíndrica, mientras que la sección de madera del lápiz aproxima un cono <em>(Ver imagen 2)</em>. Note que hasta este momento no se ha desperdiciado nada de grafito, pues lo único que se ha hecho es 'cortar madera'.
+</p>
+
+"""
+
+# ╔═╡ 8ee24dd2-3f57-4e6c-9fc3-b79f8de64005
+html"""
+<p style="text-align: justify;">
+Si se sigue con el proceso tendremos que <strong>r &gt; R'</strong>. Este proceso continúa hasta que <strong>R' = 0</strong>. Es en esta segunda parte del proceso donde se empieza a perder grafito. Así como la madera del lápiz transicionó de su geometría cilíndrica a una cónica, la mina pasará por un proceso análogo. Por tanto, para calcular el grafito desperdiciado, basta con calcular el volumen perdido en dicha transición <em>(Ver imagen 4)</em>.
+</p>
+
+"""
+
+# ╔═╡ 0bd6c612-581f-44d1-aa7b-959a18e28ad4
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/9M1SPjsn/img4.jpg" alt="Imagen 3" width="300" />
+<p style="color: gray; font-size: 14px;">Imagen 4</p>
+</div>
+
+"""
+
+# ╔═╡ 107d8f7b-4ebb-4d59-9bad-521687ae9ca5
+md"""
+En conclusión, tenemos la forma:
+
+$grafito\;perdido = V_{cilindro} - V_{cono} = \pi r^2 h - \frac{1}{3}\pi r^2 h = \frac{2}{3}\pi r^2 h$
+"""
+
+# ╔═╡ d91f1c1b-9475-4b57-86cd-93af9b603cb8
+md"""
+Para hacerlo, consideremos una vista lateral del tajalápiz y el lápiz (resaltado en color naranja) *(ver imagen 5)*. Vemos como el ángulo $$\alpha$$ que tiene el tajalápiz es el mismo que resulta en la parte superior del cono. Si mantenemos esta vista lateral, podemos ver el lápiz y la mina como el siguiente triángulo *(ver imagen 6)*, junto a esto lo anterior.
+
+"""
+
+
+
+# ╔═╡ f2dec8ba-6add-4c93-a265-29bbe9857d95
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/mrYKD9jR/img5.jpg" alt="Imagen 5" width="600" />
+<p style="color: gray; font-size: 14px;">Imagen 5</p>
+</div>
+
+"""
+
+# ╔═╡ e8f61485-aebe-4f84-a9dd-aff086ab8120
+html"""
+<div style="text-align:center;">
+  <img src="https://i.postimg.cc/yYFZdY9B/img6.jpg" alt="Imagen 6" width="600" />
+<p style="color: gray; font-size: 14px;">Imagen 6</p>
+</div>
+
+"""
+
+# ╔═╡ e33181ec-45aa-4afd-bd1a-42d813120b2f
+md"""
+De aquí es posible determinar la altura de nuestro cono **h**, pues:
+
+$tan(\alpha) = \frac{r}{h}$
+
+$h = \frac{r}{tan(\alpha)}$
+
+Por tanto, tenemos que:
+
+$grafito\;perdido = \frac{2 \pi r^3}{3 tan(\alpha)}$
+
+"""
+
+# ╔═╡ 967e024b-d0cd-43b0-89e5-8a5f0dd57eb1
+html"""
+<p style="text-align: justify;">
+Vemos como la cantidad de grafito desperdiciado depende únicamente de las dimensiones de la mina y del ángulo en el cual se saque punta. No es necesario conocer el radio <b>R</b> del lápiz.
+</p>
+
+<p></p>
+
+<p style="text-align: justify;">
+Una vez que la mina expuesta se agote (<b> h = 0 </b>) y se tenga que volver a sacar punta al lápiz, será necesario 'quitar más madera' al lápiz para exponer de nuevo la mina. En este caso, el análisis anteriormente expuesto sigue siendo válido.
+</p>
+
+<p></p>
+
+<p style="text-align: justify;">
+No obstante, si quisieramos volver a sacar punta al lápiz antes de llegar al momento en que la mina sea plana y se agote totalmente, entonces el grafito desperdiciado sería menor. La razón es que, entonces, el volumen inicial ya no podría aproximarse como un cilindro. Sin embargo, debido a las complicaciones que implica pensar en este caso y a que el grafito desperdiciado sería mínimo, lo despreciaremos
+</p>
+
+"""
+
+# ╔═╡ 7d9d900b-33b1-4c66-b28c-42d2d312351f
+md"""
+---
+"""
+
+# ╔═╡ 4186abe7-4fc8-4843-8e09-fa0a437302ee
+html"""
+<h2 style="text-align: center;">3. Implementación del modelo</h2>
+"""
+
+# ╔═╡ c47b5937-3670-4fd9-864b-1d75fdc04f1a
+md"""
+Implemente el modelo para calcular la cantidad de grafito desperdiciado por cada lápiz.
+"""
+
+# ╔═╡ cbb29a72-7106-42f4-b09d-2914b4e6c52c
+md"""
+En primer lugar, definimos en `julia` nuestro modelo de grafito desperdiciado en función del radio y el ángulo $\alpha$
+"""
+
+# ╔═╡ 7c6c44fd-d28b-4c51-9d2a-a43a415cf16e
+md"""
+Ahora, apoyandonos en matplotlib, graficaremos el comportamiento de esta función. Asumiremos que $\alpha$ es nuestra variable independiente y tomaremos al radio como constante. No obstante, nos apoyaremos de un slider para ver el comportamiento de la función dados diferentes valores del radio
+"""
+
+# ╔═╡ dd8d5586-aea6-48b5-b982-62111c56246c
+begin
+	# Definir el rango de ángulos
+    alpha_values = range(0, stop=π/2, length=100) 
+
+    # Función para calcular el desperdicio
+    function grafito_desperdiciado(radio, alpha)
+        return (2 * π * radio^3) / (3 * tan(alpha))
+    end
+
+    # Calcular los valores de desperdicio
+    y_values = grafito_desperdiciado.(radio, alpha_values)  
+end
+
+# ╔═╡ e7385fba-8f84-44e3-b744-205963d93bca
+# Graficar los resultados con márgenes ajustados
+    Plots.plot(alpha_values, y_values,
+        xlabel="Ángulo (alpha)",
+        ylabel="Desperdicio de grafito",
+        title="Estimación de Desperdicio de Grafito ",
+        label="Desperdicio",
+        lw=2,  
+        legend=:bottomleft,
+        size=(600, 300),  
+        xticks=(0:0.1:π/2),  # Divisiones más frecuentes en el eje X
+        yticks=0:2000:20000   # Ajusta estos valores según el rango de tus resultados
+    )
+
+# ╔═╡ f889be15-51d0-4cb0-9716-0f67d95ebb18
+md"""
+Como vemos, el grafito desperdiciado se minimiza a medida que $\alpha$ tiene a $\frac{\pi}{2}$. Adicionalmente, el valor del radio actúa más como un factor de 'escalonamiento' y no afecta en mayor medida al comportamiento asintotico de la función.
+"""
+
+# ╔═╡ 0b0f9e92-86fc-4126-b9f6-058b67913a3d
+md"""
+Ahora, analicemos el comportamiento del modelo cuando el angulo $\alpha$ es constante y tomamos como variable independiente al radio. De nuevo, tenemos un slider para variar el valor de $\alpha$
+"""
+
+# ╔═╡ b4810549-3ad0-4bca-940a-76317c1104fe
+begin
+	 # Definir el rango de radio
+    radio_values = range(0, stop=50, length=400)  
+
+	 # Calcular los valores de desperdicio para los valores de radio y alpha
+    y2_values = grafito_desperdiciado.(radio_values, alpha)
+end
+
+# ╔═╡ 0686af45-95f3-4a03-ad26-217a759d80f7
+# Graficar el resultado
+    Plots.plot(radio_values, y2_values,
+        xlabel="Radio",
+        ylabel="Desperdicio de grafito",
+        title="Gráfica de grafito desperdiciado vs radio",
+        label="Desperdicio",
+        lw=2,  
+        legend=:bottomleft,
+        size=(600, 300),  
+        xticks=(0:0.1:π/2),  # Divisiones más frecuentes en el eje X
+        yticks=0:2000:20000   
+    )
+
+# ╔═╡ 54d2cb2a-29e6-4449-bb88-b9c9da00cd3a
+
+
+# ╔═╡ 70f73568-04a1-458f-9904-f809bf69995a
+md"""
+---
+"""
+
+# ╔═╡ 4231e0f1-526d-4239-af69-4978dd358e97
+html"""
+<h2 style="text-align: center;">Estimaciones globales</h1>
+"""
+
+# ╔═╡ 4fce1951-7d68-4567-9951-6702bf5518b6
+md"""
+---
+"""
+
+# ╔═╡ 20a69c9a-afde-45cf-b516-af46b1a75a6d
+html"""
+<h2 style="text-align: center;">Impacto del desperdicio de grafito</h1>
+"""
+
+# ╔═╡ 897e3831-1ad0-4984-8ae1-3cfab3492648
+md"""
+---
+"""
+
+# ╔═╡ bc69cd86-2053-44b6-b47f-e5c24f77a396
+html"""
+<h2 style="text-align: center;">Propuestas de solución</h1>
+"""
+
+# ╔═╡ 980b1117-a435-45d1-89af-554b27579c95
 md"""
 ---
 """
@@ -246,16 +587,30 @@ md"""
 13. The Point of it All - History of the Pencil | Reader’s Digest Australia. (n.d.). https://web.archive.org/web/20090617220924/http://www.readersdigest.com.au/content/printContent.do?contentId=109024
 """
 
+# ╔═╡ 3ab097ce-acf9-4f69-8e5c-f78ee95e3c92
+# ╠═╡ disabled = true
+#=╠═╡
+ # Deslizador para el parámetro alpha (ángulo)
+    @bind alpha Slider(0:0.05:π/2, show_value=true)  # Deslizador para alpha entre 0 y π/2 con paso de 0.05
+  ╠═╡ =#
+
+# ╔═╡ 5a3b3e91-37c2-42a7-b075-507e8f830e55
+ # Deslizador para el parámetro alpha (ángulo)
+    @bind alpha Slider(π/3:0.05:π/2, show_value=true)  # Deslizador para alpha entre 0 y π/2 con paso de 0.05
+
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
 [compat]
 PlotlyJS = "~0.18.14"
 Plots = "~1.40.8"
+PlutoUI = "~0.7.60"
 XLSX = "~0.10.3"
 """
 
@@ -263,9 +618,15 @@ XLSX = "~0.10.3"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.5"
+julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "758390763f0626da54d112841f106aa21d2c9a95"
+project_hash = "cff3e18170ee4e6e5231136eaa28b3eb40e2d6f4"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.3.2"
 
 [[deps.ArgCheck]]
 git-tree-sha1 = "a3a402a35a2f7e0b87828ccabbd5ebfbebe356b4"
@@ -301,15 +662,15 @@ version = "0.12.9"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "9e2a6b69137e6969bab0152632dcb3bc108c8bdd"
+git-tree-sha1 = "8873e196c2eb87962a2048b3b8e08946535864a1"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
-version = "1.0.8+1"
+version = "1.0.8+2"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a2f1c8c668c8e3cb4cca4e57a8efdb09067bb3fd"
+git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
-version = "1.18.0+2"
+version = "1.18.2+1"
 
 [[deps.CodecInflate64]]
 deps = ["TranscodingStreams"]
@@ -336,16 +697,10 @@ uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 version = "0.11.5"
 
 [[deps.ColorVectorSpace]]
-deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
+deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "SpecialFunctions", "Statistics", "TensorCore"]
+git-tree-sha1 = "600cc5508d66b78aae350f7accdb58763ac18589"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.10.0"
-
-    [deps.ColorVectorSpace.extensions]
-    SpecialFunctionsExt = "SpecialFunctions"
-
-    [deps.ColorVectorSpace.weakdeps]
-    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+version = "0.9.10"
 
 [[deps.Colors]]
 deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
@@ -366,7 +721,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.1+0"
+version = "1.0.5+0"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -452,9 +807,9 @@ version = "1.2.0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
-git-tree-sha1 = "b57e3acbe22f8484b4b5ff66a7499717fe1a9cc8"
+git-tree-sha1 = "53ebe7511fa11d33bec688a9178fac4e49eeee00"
 uuid = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-version = "0.4.1"
+version = "0.4.2"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
@@ -508,15 +863,15 @@ version = "3.4.0+1"
 
 [[deps.GR]]
 deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Preferences", "Printf", "Qt6Wayland_jll", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "p7zip_jll"]
-git-tree-sha1 = "629693584cef594c3f6f99e76e7a7ad17e60e8d5"
+git-tree-sha1 = "ee28ddcd5517d54e417182fec3886e7412d3926f"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.73.7"
+version = "0.73.8"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "FreeType2_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Qt6Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a8863b69c2a0859f2c2c87ebdc4c6712e88bdf0d"
+git-tree-sha1 = "f31929b9e67066bee48eec8b03c0df47d31a74b3"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.73.7+0"
+version = "0.73.8+0"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -526,9 +881,9 @@ version = "0.21.0+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "7c82e6a6cd34e9d935e9aa4051b66c6ff3af59ba"
+git-tree-sha1 = "674ff0db93fffcd11a3573986e550d66cd4fd71f"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.80.2+0"
+version = "2.80.5+0"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -543,9 +898,9 @@ version = "1.0.2"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "d1d712be3164d61d1fb98e7ce9bcbc6cc06b45ed"
+git-tree-sha1 = "bc3f416a965ae61968c20d0ad867556367f2817d"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.10.8"
+version = "1.10.9"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
@@ -558,6 +913,24 @@ deps = ["MacroTools", "Test"]
 git-tree-sha1 = "6187bb2d5fcbb2007c39e7ac53308b0d371124bd"
 uuid = "9fb69e20-1954-56bb-a84f-559cc56a8ff7"
 version = "0.2.2"
+
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.5"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.5"
 
 [[deps.InputBuffers]]
 git-tree-sha1 = "d5c278bee2efd4fda62725a4a794d7e5f55e14f1"
@@ -586,9 +959,9 @@ version = "0.1.8"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "f389674c99bfcde17dc57454011aa44d5a260a40"
+git-tree-sha1 = "be3dc50a92e5a386872a493a10050136d4703f9b"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.6.0"
+version = "1.6.1"
 
 [[deps.JSExpr]]
 deps = ["JSON", "MacroTools", "Observables", "WebIO"]
@@ -604,9 +977,9 @@ version = "0.21.4"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "c84a835e1a09b289ffcd2271bf2a337bbdda6637"
+git-tree-sha1 = "25ee0be4d43d0269027024d75a24c24d6c6e590c"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
-version = "3.0.3+0"
+version = "3.0.4+0"
 
 [[deps.Kaleido_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -621,10 +994,10 @@ uuid = "c1c5ebd0-6772-5130-a774-d5fcae4a789d"
 version = "3.100.2+0"
 
 [[deps.LERC_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "bf36f528eec6634efc60d7ec062008f171071434"
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "36bdbc52f13a7d1dcb0f3cd694e01677a515655b"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
-version = "3.0.0+1"
+version = "4.0.0+0"
 
 [[deps.LLVMOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -634,14 +1007,14 @@ version = "18.1.7+0"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "70c5da094887fd2cae843b8db33920bac4b6f07d"
+git-tree-sha1 = "854a9c268c43b77b0a27f22d7fab8d33cdb3a731"
 uuid = "dd4b983a-f0e5-5f8d-a1b7-129d4a5fb1ac"
-version = "2.10.2+0"
+version = "2.10.2+1"
 
 [[deps.LaTeXStrings]]
-git-tree-sha1 = "50901ebc375ed41dbf8058da26f9de442febbbec"
+git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-version = "1.3.1"
+version = "1.4.0"
 
 [[deps.Latexify]]
 deps = ["Format", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
@@ -668,26 +1041,21 @@ version = "0.15.1"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.4"
+version = "0.6.3"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.4.0+0"
+version = "7.84.0+0"
 
 [[deps.LibGit2]]
-deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
+deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
-
-[[deps.LibGit2_jll]]
-deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
-uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.6.4+0"
 
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.0+1"
+version = "1.10.2+0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -700,9 +1068,9 @@ version = "3.2.2+1"
 
 [[deps.Libgcrypt_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libgpg_error_jll"]
-git-tree-sha1 = "9fd170c4bbfd8b935fdc5f8b7aa33532c991a673"
+git-tree-sha1 = "8be878062e0ffa2c3f67bb58a595375eda5de80b"
 uuid = "d4300ac3-e22c-5743-9152-c294e39db1e4"
-version = "1.8.11+0"
+version = "1.11.0+0"
 
 [[deps.Libglvnd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll", "Xorg_libXext_jll"]
@@ -712,15 +1080,15 @@ version = "1.6.0+0"
 
 [[deps.Libgpg_error_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "fbb1f2bef882392312feb1ede3615ddc1e9b99ed"
+git-tree-sha1 = "c6ce1e19f3aec9b59186bdf06cdf3c4fc5f5f3e6"
 uuid = "7add5ba3-2f88-524e-9cd5-f83b8a55f7b8"
-version = "1.49.0+0"
+version = "1.50.0+0"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "f9557a255370125b405568f9767d6d195822a175"
+git-tree-sha1 = "61dfdba58e585066d8bce214c5a51eaa0539f269"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.17.0+0"
+version = "1.17.0+1"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -730,9 +1098,9 @@ version = "2.40.1+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
-git-tree-sha1 = "2da088d113af58221c52828a80378e16be7d037a"
+git-tree-sha1 = "b404131d06f7886402758c9ce2214b636eb4d54a"
 uuid = "89763e89-9b03-5906-acba-b20f662cd828"
-version = "4.5.1+1"
+version = "4.7.0+0"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -765,9 +1133,14 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[deps.LoggingExtras]]
 deps = ["Dates", "Logging"]
-git-tree-sha1 = "c1dd6d7978c12545b4179fb6153b9250c96b0075"
+git-tree-sha1 = "f02b56007b064fbfddb4c9cd60161b6dd0f40df3"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
-version = "1.0.3"
+version = "1.1.0"
+
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -788,7 +1161,7 @@ version = "1.1.9"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.2+1"
+version = "2.28.2+0"
 
 [[deps.Measures]]
 git-tree-sha1 = "c13304c81eec1ed3af7fc20e75fb6b26092a1102"
@@ -806,7 +1179,7 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.1.10"
+version = "2022.10.11"
 
 [[deps.Mustache]]
 deps = ["Printf", "Tables"]
@@ -844,12 +1217,12 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.23+4"
+version = "0.3.21+4"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -859,9 +1232,15 @@ version = "1.4.3"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1b35263570443fdd9e76c76b7062116e2f374ab8"
+git-tree-sha1 = "7493f61f55a6cce7325f197443aa80d32554ba10"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.0.15+0"
+version = "3.0.15+1"
+
+[[deps.OpenSpecFun_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
+uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
+version = "0.5.5+0"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -877,7 +1256,7 @@ version = "1.6.3"
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
-version = "10.42.0+1"
+version = "10.42.0+0"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
@@ -917,19 +1296,19 @@ version = "0.43.4+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.10.0"
+version = "1.9.2"
 
 [[deps.PlotThemes]]
 deps = ["PlotUtils", "Statistics"]
-git-tree-sha1 = "6e55c6841ce3411ccb3457ee52fc48cb698d6fb0"
+git-tree-sha1 = "41031ef3a1be6f5bbbf3e8073f210556daeae5ca"
 uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
-version = "3.2.0"
+version = "3.3.0"
 
 [[deps.PlotUtils]]
-deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "7b1a9df27f072ac4c9c7cbe5efb198489258d1f5"
+deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "StableRNGs", "Statistics"]
+git-tree-sha1 = "650a022b2ce86c7dcfbdecf00f78afeeb20e5655"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.4.1"
+version = "1.4.2"
 
 [[deps.PlotlyBase]]
 deps = ["ColorSchemes", "Dates", "DelimitedFiles", "DocStringExtensions", "JSON", "LaTeXStrings", "Logging", "Parameters", "Pkg", "REPL", "Requires", "Statistics", "UUIDs"]
@@ -981,6 +1360,12 @@ version = "1.40.8"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.60"
+
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
@@ -1026,7 +1411,7 @@ deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[deps.Random]]
-deps = ["SHA"]
+deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.RecipesBase]]
@@ -1078,9 +1463,9 @@ uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "1.0.3"
 
 [[deps.SimpleBufferStream]]
-git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
+git-tree-sha1 = "f305871d2f381d21527c770d4788c06c097c9bc1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
-version = "1.1.0"
+version = "1.2.0"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -1094,12 +1479,29 @@ version = "1.2.1"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.10.0"
+
+[[deps.SpecialFunctions]]
+deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
+git-tree-sha1 = "2f5d4697f21388cbe1ff299430dd169ef97d7e14"
+uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
+version = "2.4.0"
+
+    [deps.SpecialFunctions.extensions]
+    SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
+
+    [deps.SpecialFunctions.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+
+[[deps.StableRNGs]]
+deps = ["Random"]
+git-tree-sha1 = "83e6cce8324d49dfaf9ef059227f91ed4441a8e5"
+uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
+version = "1.0.2"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-version = "1.10.0"
+version = "1.9.0"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
@@ -1114,9 +1516,9 @@ uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.34.3"
 
 [[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
+deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.2.1+1"
+version = "5.10.1+6"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -1151,9 +1553,14 @@ deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TranscodingStreams]]
-git-tree-sha1 = "e84b3a11b9bece70d14cce63406bbc79ed3464d2"
+git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
-version = "0.11.2"
+version = "0.11.3"
+
+[[deps.Tricks]]
+git-tree-sha1 = "7822b97e99a1672bfb1b49b668a6d46d58d8cbcb"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.9"
 
 [[deps.URIs]]
 git-tree-sha1 = "67db6cc7b3821e19ebe75791a9dd19c9b1188f2b"
@@ -1247,9 +1654,9 @@ version = "0.10.3"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
-git-tree-sha1 = "1165b0443d0eca63ac1e32b8c0eb69ed2f4f8127"
+git-tree-sha1 = "6a451c6f33a176150f315726eba8b92fbfdb9ae7"
 uuid = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
-version = "2.13.3+0"
+version = "2.13.4+0"
 
 [[deps.XSLT_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libgcrypt_jll", "Libgpg_error_jll", "Libiconv_jll", "XML2_jll", "Zlib_jll"]
@@ -1259,9 +1666,9 @@ version = "1.1.41+0"
 
 [[deps.XZ_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "ac88fb95ae6447c8dda6a5503f3bafd496ae8632"
+git-tree-sha1 = "15e637a697345f6743674f1322beefbc5dcd5cfc"
 uuid = "ffd25f8a-64ca-5728-b0f7-c24cf3aae800"
-version = "5.4.6+0"
+version = "5.6.3+0"
 
 [[deps.Xorg_libICE_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1409,9 +1816,9 @@ version = "1.5.0+0"
 
 [[deps.ZipArchives]]
 deps = ["ArgCheck", "CodecInflate64", "CodecZlib", "InputBuffers", "PrecompileTools", "TranscodingStreams", "Zlib_jll"]
-git-tree-sha1 = "c77707ebf7aad0caa57ad7b561b4f89b0caefc73"
+git-tree-sha1 = "f7fd93aa03f519c25b8b328693f2d36ce01220a9"
 uuid = "49080126-0e18-4c2a-b176-c102e4b3760c"
-version = "2.3.0"
+version = "2.4.0"
 
 [[deps.ZipFile]]
 deps = ["Libdl", "Printf", "Zlib_jll"]
@@ -1422,13 +1829,13 @@ version = "0.10.1"
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.13+1"
+version = "1.2.13+0"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e678132f07ddb5bfa46857f0d7620fb9be675d3b"
+git-tree-sha1 = "555d1076590a6cc2fdee2ef1469451f872d8b41b"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
-version = "1.5.6+0"
+version = "1.5.6+1"
 
 [[deps.eudev_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "gperf_jll"]
@@ -1463,7 +1870,7 @@ version = "0.15.2+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.11.0+0"
+version = "5.8.0+0"
 
 [[deps.libdecor_jll]]
 deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
@@ -1491,9 +1898,9 @@ version = "1.18.0+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "d7015d2e18a5fd9a4f47de711837e980519781a4"
+git-tree-sha1 = "b70c870239dc3d7bc094eb2d6be9b73d27bef280"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.43+1"
+version = "1.6.44+0"
 
 [[deps.libvorbis_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
@@ -1510,12 +1917,12 @@ version = "1.1.6+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.52.0+1"
+version = "1.48.0+0"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.4.0+2"
+version = "17.4.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1554,7 +1961,8 @@ version = "1.4.1+1"
 # ╟─ecb5fbc7-d605-450c-91b0-805a2c0d65da
 # ╟─df24a32f-0d27-43c6-b9de-4f4dd6db0054
 # ╟─83158cfb-02de-4a7e-a421-bbb81ed88460
-# ╟─beca5a3c-1f0b-44ce-86e2-74c509b106ba
+# ╠═ef033e02-2d77-4384-8bb6-3c5ce0cf3533
+# ╠═beca5a3c-1f0b-44ce-86e2-74c509b106ba
 # ╟─23246c70-59d0-46f8-90b0-df48a11e86e1
 # ╟─1da8d346-2642-4b84-b627-88618b6639cb
 # ╟─235427aa-8141-4bf5-b389-26933efff8cb
@@ -1566,6 +1974,44 @@ version = "1.4.1+1"
 # ╟─12a1ed5d-9cfa-41bd-b8ef-49f94c95e2ff
 # ╟─ec33c72b-9ef9-4a41-82cb-dcf29be264d6
 # ╟─19e5aefe-5813-44f4-9223-0bb34cf206a0
+# ╟─07564003-04d1-41fa-b0af-022f70c09cf0
+# ╟─c4248a42-f4dd-4b8e-93cd-d0298b7b3a15
+# ╟─1d285017-d01a-4ab0-b108-a06925f91c6a
+# ╟─e7ce99c3-07cc-471e-92b0-6b3dcdc19ce3
+# ╟─14d07755-8076-456f-a0dc-ba9c62f4736c
+# ╟─291b9e72-a2dc-4306-a8d2-2af433d817a5
+# ╟─831ce2bc-f3eb-4850-b289-c85e57111373
+# ╟─ea427486-f4e9-450f-abe0-b0d7de544fa4
+# ╟─8ee24dd2-3f57-4e6c-9fc3-b79f8de64005
+# ╟─0bd6c612-581f-44d1-aa7b-959a18e28ad4
+# ╟─107d8f7b-4ebb-4d59-9bad-521687ae9ca5
+# ╟─d91f1c1b-9475-4b57-86cd-93af9b603cb8
+# ╟─f2dec8ba-6add-4c93-a265-29bbe9857d95
+# ╟─e8f61485-aebe-4f84-a9dd-aff086ab8120
+# ╟─e33181ec-45aa-4afd-bd1a-42d813120b2f
+# ╟─967e024b-d0cd-43b0-89e5-8a5f0dd57eb1
+# ╟─7d9d900b-33b1-4c66-b28c-42d2d312351f
+# ╟─4186abe7-4fc8-4843-8e09-fa0a437302ee
+# ╟─c47b5937-3670-4fd9-864b-1d75fdc04f1a
+# ╟─cbb29a72-7106-42f4-b09d-2914b4e6c52c
+# ╟─7c6c44fd-d28b-4c51-9d2a-a43a415cf16e
+# ╠═aabdf0db-a661-4623-840e-4bf808f19d0d
+# ╠═3ab097ce-acf9-4f69-8e5c-f78ee95e3c92
+# ╠═dd8d5586-aea6-48b5-b982-62111c56246c
+# ╠═e7385fba-8f84-44e3-b744-205963d93bca
+# ╟─f889be15-51d0-4cb0-9716-0f67d95ebb18
+# ╟─0b0f9e92-86fc-4126-b9f6-058b67913a3d
+# ╠═5a3b3e91-37c2-42a7-b075-507e8f830e55
+# ╠═b4810549-3ad0-4bca-940a-76317c1104fe
+# ╠═0686af45-95f3-4a03-ad26-217a759d80f7
+# ╟─54d2cb2a-29e6-4449-bb88-b9c9da00cd3a
+# ╟─70f73568-04a1-458f-9904-f809bf69995a
+# ╟─4231e0f1-526d-4239-af69-4978dd358e97
+# ╟─4fce1951-7d68-4567-9951-6702bf5518b6
+# ╟─20a69c9a-afde-45cf-b516-af46b1a75a6d
+# ╟─897e3831-1ad0-4984-8ae1-3cfab3492648
+# ╟─bc69cd86-2053-44b6-b47f-e5c24f77a396
+# ╟─980b1117-a435-45d1-89af-554b27579c95
 # ╟─00eaac4f-0cbd-4c61-86d9-508206e0eab4
 # ╟─18ba65af-07b8-486d-baa6-1b8c7710afe1
 # ╟─00000000-0000-0000-0000-000000000001
