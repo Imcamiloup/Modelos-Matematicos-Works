@@ -480,6 +480,11 @@ md"""
 Ahora, analicemos el comportamiento del modelo cuando el angulo $\alpha$ es constante y tomamos como variable independiente al radio. De nuevo, tenemos un slider para variar el valor de $\alpha$
 """
 
+# ╔═╡ 5a3b3e91-37c2-42a7-b075-507e8f830e55
+ # Deslizador para el parámetro alpha (ángulo)
+    @bind alpha Slider(π/3:0.05:π/2, show_value=true)  # Deslizador para alpha entre 0 y π/2 con paso de 0.05
+
+
 # ╔═╡ b4810549-3ad0-4bca-940a-76317c1104fe
 begin
 	 # Definir el rango de radio
@@ -499,7 +504,7 @@ end
         lw=2,  
         legend=:bottomleft,
         size=(600, 300),  
-        xticks=(0:0.1:π/2),  # Divisiones más frecuentes en el eje X
+        xticks=(0:5:50),  # Divisiones más frecuentes en el eje X
         yticks=0:2000:20000   
     )
 
@@ -513,7 +518,67 @@ md"""
 
 # ╔═╡ 4231e0f1-526d-4239-af69-4978dd358e97
 html"""
-<h2 style="text-align: center;">Estimaciones globales</h1>
+<h2 style="text-align: center;">5. Impacto del desperdicio de grafito</h1>
+"""
+
+# ╔═╡ 3723ee03-66a8-4ade-b245-f2ee08c43ef4
+html"""
+<p style="text-align: justify;">
+Considerando que globalmente se fabrican aproximadamente 14 mil millones de lápices al año, y tomando como referencia el modelo desarrollado anteriormente, podemos estimar el impacto del desperdicio de grafito en diferentes escalas.
+Si consideramos un ángulo típico de sacapuntas de 35° (aproximadamente 0.61 radianes) y un radio de mina estándar de 1mm, cada vez que se saca punta a un lápiz se desperdician aproximadamente 2.051 mm³ de grafito. Asumiendo una densidad del grafito de 2.2 g/cm³, esto representa una pérdida de aproximadamente 0.004512 gramos por cada vez que se saca punta.
+
+</p>
+
+<p></p>
+
+<b style="text-align: justify;">
+Para dimensionar esto a escala global:
+</b>
+
+<p></p>
+
+<p style="text-align: justify;">
+● Con 14 mil millones de lápices anuales.
+
+</p>
+<p style="text-align: justify;">
+
+●  Asumiendo un promedio conservador de 12 veces que se saca punta a cada lápiz durante su vida útil.
+
+</p>
+
+
+</p>
+
+
+
+
+"""
+
+# ╔═╡ 66e0270c-6b35-4062-bc29-bcd2253b546f
+md"""
+● El desperdicio anual sería aproximadamente de:  
+
+$$14,000,000,000 \times 0.004512\text{g} \times 12 = 758,016 \text{ kg de grafito}$$
+"""
+
+# ╔═╡ 49fa9edc-d323-4c85-9174-57d3d1692d48
+html"""
+<p style="text-align: justify;">
+
+Esto representa aproximadamente el 0.047% de la producción global de grafito natural en 2023 (1.6 millones de toneladas métricas). Si bien puede parecer un porcentaje pequeño, en términos monetarios, considerando el precio promedio de 2,135 dólares por tonelada en 2022, este desperdicio representa más de 1.6 millones de dólares anuales en grafito perdido solo en el proceso de sacar punta.
+Para el caso específico de Colombia, donde se venden aproximadamente 120 millones de unidades anuales:
+14,000,000,000 × 0.004512g × 12 = 758,016 kg de grafito.
+</p>
+
+</p>
+<p style="text-align: justify;">
+
+El desperdicio anual sería aproximadamente de:
+120,000,000 × 0.004512g × 12 = 6,497.28 kg de grafito
+Esto representa aproximadamente 13,871 dólares en grafito desperdiciado anualmente
+14,000,000,000 × 0.004512g × 12 = 758,016 kg de grafito.
+</p>
 """
 
 # ╔═╡ 4fce1951-7d68-4567-9951-6702bf5518b6
@@ -521,19 +586,55 @@ md"""
 ---
 """
 
-# ╔═╡ 20a69c9a-afde-45cf-b516-af46b1a75a6d
-html"""
-<h2 style="text-align: center;">Impacto del desperdicio de grafito</h1>
-"""
-
-# ╔═╡ 897e3831-1ad0-4984-8ae1-3cfab3492648
-md"""
----
-"""
-
 # ╔═╡ bc69cd86-2053-44b6-b47f-e5c24f77a396
 html"""
 <h2 style="text-align: center;">Propuestas de solución</h1>
+"""
+
+# ╔═╡ ec01d922-36a0-4e07-8c2f-59e29226c458
+html"""
+
+<p style="text-align: justify;">
+Analizando el comportamiento de nuestro modelo matemático, podemos identificar tres variables principales sobre las cuales podemos actuar para reducir el desperdicio de grafito:
+</p>
+
+<p style="text-align: justify;">
+<b>Optimización del ángulo de afilado (α):</b><br>
+Como se observó en la gráfica del modelo, el desperdicio de grafito disminuye significativamente conforme el ángulo α tiende a π/2. Proponemos:
+</p>
+
+<ul style="text-align: justify;">
+    <li>Desarrollo de sacapuntas con ángulos optimizados (cercanos a 60°) que mantengan la funcionalidad del lápiz mientras minimizan el desperdicio</li>
+    <li>Estandarización de estos ángulos en la industria</li>
+</ul>
+
+<p style="text-align: justify;">
+<b>Innovación en el diseño de la mina (r):</b><br>
+El modelo muestra que el radio de la mina tiene un impacto directo en el volumen de grafito desperdiciado. Se propone:
+</p>
+
+<ul style="text-align: justify;">
+    <li>Desarrollo de minas con geometría variable, más delgada hacia la punta</li>
+    <li>Sistemas de minas segmentadas que permitan usar la totalidad del material</li>
+</ul>
+
+<p style="text-align: justify;">
+<b>Modificación del proceso de afilado:</b><br>
+Basándonos en que el desperdicio ocurre principalmente en la transición de forma cilíndrica a cónica, se sugiere:
+</p>
+
+<ul style="text-align: justify;">
+    <li>Diseño de lápices pre-formados con una transición gradual en la mina</li>
+    <li>Sistemas mecánicos que permitan extruir la mina gradualmente, similar a los portaminas</li>
+</ul>
+
+<p style="text-align: justify;">
+Esta propuesta se alinea con las tendencias actuales del mercado del grafito, donde China, como principal productor (77% de la producción global), ya está implementando medidas para optimizar el uso de este recurso estratégico. Además, considerando que Suramérica consume solo el 5% del grafito natural global, existe una oportunidad significativa para posicionarse como región líder en la implementación de estas soluciones innovadoras.
+</p>
+
+<p style="text-align: justify;">
+Las soluciones propuestas no solo abordan el aspecto técnico del desperdicio, sino que también se alinean con la creciente demanda global de grafito y su papel estratégico en la transición energética, como se evidencia en los datos presentados anteriormente sobre el mercado global de este mineral.
+</p>
 """
 
 # ╔═╡ 980b1117-a435-45d1-89af-554b27579c95
@@ -586,18 +687,6 @@ md"""
 
 13. The Point of it All - History of the Pencil | Reader’s Digest Australia. (n.d.). https://web.archive.org/web/20090617220924/http://www.readersdigest.com.au/content/printContent.do?contentId=109024
 """
-
-# ╔═╡ 3ab097ce-acf9-4f69-8e5c-f78ee95e3c92
-# ╠═╡ disabled = true
-#=╠═╡
- # Deslizador para el parámetro alpha (ángulo)
-    @bind alpha Slider(0:0.05:π/2, show_value=true)  # Deslizador para alpha entre 0 y π/2 con paso de 0.05
-  ╠═╡ =#
-
-# ╔═╡ 5a3b3e91-37c2-42a7-b075-507e8f830e55
- # Deslizador para el parámetro alpha (ángulo)
-    @bind alpha Slider(π/3:0.05:π/2, show_value=true)  # Deslizador para alpha entre 0 y π/2 con paso de 0.05
-
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1961,8 +2050,8 @@ version = "1.4.1+1"
 # ╟─ecb5fbc7-d605-450c-91b0-805a2c0d65da
 # ╟─df24a32f-0d27-43c6-b9de-4f4dd6db0054
 # ╟─83158cfb-02de-4a7e-a421-bbb81ed88460
-# ╠═ef033e02-2d77-4384-8bb6-3c5ce0cf3533
-# ╠═beca5a3c-1f0b-44ce-86e2-74c509b106ba
+# ╟─ef033e02-2d77-4384-8bb6-3c5ce0cf3533
+# ╟─beca5a3c-1f0b-44ce-86e2-74c509b106ba
 # ╟─23246c70-59d0-46f8-90b0-df48a11e86e1
 # ╟─1da8d346-2642-4b84-b627-88618b6639cb
 # ╟─235427aa-8141-4bf5-b389-26933efff8cb
@@ -1989,28 +2078,29 @@ version = "1.4.1+1"
 # ╟─f2dec8ba-6add-4c93-a265-29bbe9857d95
 # ╟─e8f61485-aebe-4f84-a9dd-aff086ab8120
 # ╟─e33181ec-45aa-4afd-bd1a-42d813120b2f
-# ╟─967e024b-d0cd-43b0-89e5-8a5f0dd57eb1
+# ╠═967e024b-d0cd-43b0-89e5-8a5f0dd57eb1
 # ╟─7d9d900b-33b1-4c66-b28c-42d2d312351f
 # ╟─4186abe7-4fc8-4843-8e09-fa0a437302ee
 # ╟─c47b5937-3670-4fd9-864b-1d75fdc04f1a
 # ╟─cbb29a72-7106-42f4-b09d-2914b4e6c52c
 # ╟─7c6c44fd-d28b-4c51-9d2a-a43a415cf16e
-# ╠═aabdf0db-a661-4623-840e-4bf808f19d0d
-# ╠═3ab097ce-acf9-4f69-8e5c-f78ee95e3c92
-# ╠═dd8d5586-aea6-48b5-b982-62111c56246c
-# ╠═e7385fba-8f84-44e3-b744-205963d93bca
+# ╟─aabdf0db-a661-4623-840e-4bf808f19d0d
+# ╟─dd8d5586-aea6-48b5-b982-62111c56246c
+# ╟─e7385fba-8f84-44e3-b744-205963d93bca
 # ╟─f889be15-51d0-4cb0-9716-0f67d95ebb18
 # ╟─0b0f9e92-86fc-4126-b9f6-058b67913a3d
-# ╠═5a3b3e91-37c2-42a7-b075-507e8f830e55
-# ╠═b4810549-3ad0-4bca-940a-76317c1104fe
-# ╠═0686af45-95f3-4a03-ad26-217a759d80f7
+# ╟─5a3b3e91-37c2-42a7-b075-507e8f830e55
+# ╟─b4810549-3ad0-4bca-940a-76317c1104fe
+# ╟─0686af45-95f3-4a03-ad26-217a759d80f7
 # ╟─54d2cb2a-29e6-4449-bb88-b9c9da00cd3a
 # ╟─70f73568-04a1-458f-9904-f809bf69995a
 # ╟─4231e0f1-526d-4239-af69-4978dd358e97
+# ╟─3723ee03-66a8-4ade-b245-f2ee08c43ef4
+# ╟─66e0270c-6b35-4062-bc29-bcd2253b546f
+# ╟─49fa9edc-d323-4c85-9174-57d3d1692d48
 # ╟─4fce1951-7d68-4567-9951-6702bf5518b6
-# ╟─20a69c9a-afde-45cf-b516-af46b1a75a6d
-# ╟─897e3831-1ad0-4984-8ae1-3cfab3492648
 # ╟─bc69cd86-2053-44b6-b47f-e5c24f77a396
+# ╟─ec01d922-36a0-4e07-8c2f-59e29226c458
 # ╟─980b1117-a435-45d1-89af-554b27579c95
 # ╟─00eaac4f-0cbd-4c61-86d9-508206e0eab4
 # ╟─18ba65af-07b8-486d-baa6-1b8c7710afe1
