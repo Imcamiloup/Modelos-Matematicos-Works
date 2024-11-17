@@ -109,7 +109,7 @@ html"""
 
 # ╔═╡ dbee1abf-7858-4ace-a339-2fab9064968b
 md"""
-En este caso, asumimos que el modelo lineal tiene la forma:
+Para este modelo asumimos que el modelo lineal tiene la forma:
 
 $$O(t)\approx a+bt$$
 """
@@ -267,9 +267,92 @@ y la podemos visualizar:
 
 # ╔═╡ 6a265d81-58c2-4d3c-9301-e576384c8b94
 begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Cúbico", size=(600, 400), color=:red, label="Ocupación")
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo cúbico", size=(600, 400), color=:red, label="Ocupación")
 	plot!(tiempo, [resCu[1].+tiempo.*resCu[2].+tiempo.^2 .*resCu[3]+tiempo.^3 .*resCu[4]], color=:blue, linewidth=3, label="Modelo cúbico")
 end
+
+# ╔═╡ 2352442f-5289-4ae4-80ce-6c52292b4397
+html"""
+<h2 style="text-align: center">Modelo de redes neuronales artificiales</h2>
+"""
+
+# ╔═╡ 33f103bd-d43b-4403-a1e7-ac963051a6c6
+md"""
+En este caso, asumimos que:
+
+$$O(t) \approx a\frac{1}{1+e^{bt+c}} + d \frac{1}{1+e^{ft+g}}$$
+"""
+
+# ╔═╡ b367f966-0d54-4824-b38f-fe78fac70748
+md"""
+y queremos estimar los parámetros $a$, $b$, $c$, $d$, $f$ y $g$. Para esto, definimos una función para medir el desajuste del modelo utilizando mínimos cuadrados:
+"""
+
+# ╔═╡ 8217f156-4c1a-4a21-b7f7-46223b141649
+function residuoMANN(par, O, t)
+	a, b, c, d, f, g = par
+	one = fill(1, length(t))
+	Opred = a*( one./ (one+exp.(b*t+c*one)  ))+d*( one./ (one+exp.(f*t+g*one)  ))
+	nres = norm(O - Opred)
+	return nres
+end
+
+# ╔═╡ 6ab51698-dfa2-48f2-b303-67cef7437585
+md"""
+Ahora declaramos la función a optimizar:
+"""
+
+# ╔═╡ 9bbbbd33-8405-4661-be46-e6efa8d47e3b
+rMANN(par) = residuoMANN(par, values, tiempo)
+
+# ╔═╡ d8e79b95-4920-4f68-bf77-8f4405110ae7
+md"""
+y la optimizamos:
+"""
+
+# ╔═╡ 2b96a551-eb7f-4a7e-a4d7-6d033640bd88
+oANN = Optim.optimize(rMANN, [0.01,.0001,.001,0.01,.0001,.001], BFGS());
+
+# ╔═╡ 1e2f1cc0-c886-4971-843d-b2620cce5ca3
+md"""
+Obtenemos los siguientes valores óptimos:
+"""
+
+# ╔═╡ 3ac314c7-8e05-4f96-ace0-0eae06b4940d
+resANN = oANN.minimizer
+
+# ╔═╡ 291f0f6b-119e-401c-8cbf-238dcfd87f2e
+md"""
+Y el siguiente valor mínimo:
+"""
+
+# ╔═╡ 1d648ed3-1f29-4908-ae2a-b1b9daf150bd
+oANN.minimum
+
+# ╔═╡ b1bb8b57-4281-46aa-bd5a-51b737115d34
+md"""
+Llegando al siguiente modelo:
+
+$$O(t) \approx 145.32\frac{1}{1+e^{-0.454165t+
+8.30715}} + 335.343 \frac{1}{1+e^{-0.190257t-0.257313}}$$
+"""
+
+# ╔═╡ c9824e17-8438-4d11-9a8b-e1334a205062
+begin
+	oneaux = fill(1, length(values))
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo ANN", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [resANN[1] .* (oneaux ./ (oneaux .+ exp.(resANN[2].*tiempo .+ resANN[3] .* oneaux))) .+ resANN[4] .* (oneaux ./ (oneaux .+ exp.(resANN[5].*tiempo .+ resANN[6] .* oneaux)))], color=:blue, linewidth=3, label="Modelo ANN")
+end
+
+# ╔═╡ 552d16a6-6bed-4487-86d3-8d67754e91b6
+html"""
+<h2 style="text-align:center">Modelos sugeridos</h2?
+"""
+
+# ╔═╡ 6b73f861-974b-4191-83fa-fcb05cc99a55
+html"""
+<h2 style="text-align:center">Modelo de ecuaciones diferenciales</h2>
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3122,11 +3205,27 @@ version = "1.4.1+1"
 # ╟─5842dfba-0082-4577-a8b1-4a603ff6cdef
 # ╠═3ef25b10-d59d-4ef0-9260-17d60d79297c
 # ╟─8a707e3b-7987-4e48-acf6-994746282f00
-# ╟─db98d90c-9b21-4de0-8c22-3572b3461b9b
+# ╠═db98d90c-9b21-4de0-8c22-3572b3461b9b
 # ╟─5a9cf26e-553e-482c-918a-c9845f1ec183
 # ╠═f6f7bd9e-7354-4eea-8eb1-bfbabc1a5d13
 # ╟─c0e1b0ee-1c1c-4b22-977f-844358b7f5fe
 # ╟─3097376f-aad2-42f1-be36-122291ecb83b
 # ╟─6a265d81-58c2-4d3c-9301-e576384c8b94
+# ╟─2352442f-5289-4ae4-80ce-6c52292b4397
+# ╟─33f103bd-d43b-4403-a1e7-ac963051a6c6
+# ╟─b367f966-0d54-4824-b38f-fe78fac70748
+# ╠═8217f156-4c1a-4a21-b7f7-46223b141649
+# ╟─6ab51698-dfa2-48f2-b303-67cef7437585
+# ╠═9bbbbd33-8405-4661-be46-e6efa8d47e3b
+# ╟─d8e79b95-4920-4f68-bf77-8f4405110ae7
+# ╠═2b96a551-eb7f-4a7e-a4d7-6d033640bd88
+# ╟─1e2f1cc0-c886-4971-843d-b2620cce5ca3
+# ╠═3ac314c7-8e05-4f96-ace0-0eae06b4940d
+# ╟─291f0f6b-119e-401c-8cbf-238dcfd87f2e
+# ╠═1d648ed3-1f29-4908-ae2a-b1b9daf150bd
+# ╟─b1bb8b57-4281-46aa-bd5a-51b737115d34
+# ╟─c9824e17-8438-4d11-9a8b-e1334a205062
+# ╟─552d16a6-6bed-4487-86d3-8d67754e91b6
+# ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
