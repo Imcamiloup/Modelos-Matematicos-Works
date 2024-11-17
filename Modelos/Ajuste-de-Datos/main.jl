@@ -170,7 +170,7 @@ Y la optimizamos, utilizando `Optim.optimize`:
 """
 
 # ╔═╡ 7e1f32a4-3f73-4d7a-bd43-978d5a3b48f2
-oLineal = Optim.optimize(rMLineal, [186.0, 12.0], LBFGS());
+oLineal = Optim.optimize(rMLineal, [186.0, 12.0], LBFGS())
 
 # ╔═╡ 1391ee0a-bdc7-42a1-b3e4-e7fd521cf727
 md"""
@@ -235,7 +235,7 @@ La optimizamos:
 """
 
 # ╔═╡ 3ef25b10-d59d-4ef0-9260-17d60d79297c
-oCúbico = Optim.optimize(rMCúbico, [186.0, 12.0, 10.0, 10.0], LBFGS());
+oCúbico = Optim.optimize(rMCúbico, [186.0, 12.0, 10.0, 10.0], LBFGS())
 
 # ╔═╡ 8a707e3b-7987-4e48-acf6-994746282f00
 md"""
@@ -311,7 +311,7 @@ y la optimizamos:
 """
 
 # ╔═╡ 2b96a551-eb7f-4a7e-a4d7-6d033640bd88
-oANN = Optim.optimize(rMANN, [0.01,.0001,.001,0.01,.0001,.001], BFGS());
+oANN = Optim.optimize(rMANN, [0.01,.0001,.001,0.01,.0001,.001], BFGS())
 
 # ╔═╡ 1e2f1cc0-c886-4971-843d-b2620cce5ca3
 md"""
@@ -353,6 +353,117 @@ html"""
 html"""
 <h2 style="text-align:center">Modelo de ecuaciones diferenciales</h2>
 """
+
+# ╔═╡ 7e0800a1-fdd7-4140-ab8f-bf6677d0a271
+md"""
+Probaremos el modelo SIR, el cual divide a la población en tres grupos: susceptibles, infectados y recuperados. Las ecuaciones asociadas son:
+
+$$\frac{dS}{dt} = -\beta \frac{S\cdot I}{N}$$
+
+$$\frac{dI}{dt} = \beta \frac{S\cdot I}{N}-\gamma I$$
+
+$$\frac{dR}{dt} = \gamma I$$
+
+donde $S$ representa las personas que pueden contraer la infección, I las personas actualmente infectadas, R las personas que ya no son susceptibles y $N=S+I+R$. En cuanto a los parámetros, $\beta$ representa la tasa de infección y $\gamma$ la de recuperación.
+
+La tasa de ocupación de camas UCI estará asociada a la proporción de infectados que requiere ser hospitalizada, esto es $h\cdot I$ para $h\in (0, 1)$.
+"""
+
+# ╔═╡ 17d50742-8407-4d3a-a491-3cbd8deea720
+md"""
+Queremos encontrar los parámetros $\beta$, $\gamma$ y $h$ más óptimos.
+"""
+
+# ╔═╡ 7640a3e8-b0ee-46e8-af45-757228604036
+md"""
+En primer lugar, definimos el modelo:
+"""
+
+# ╔═╡ 3cc80e2c-49af-4d63-90aa-d86b91bcce6e
+function modeloEDO(du, u, par, t)
+  S, I, R = u
+  beta, gamma = par
+  N = S + I + R
+
+  du[1] = -(beta*S*I)/N          
+  du[2] = (beta*S*I)/N - gamma*I    
+  du[3] = gamma*I                      
+end
+
+# ╔═╡ e3a60f67-2035-4ba2-acbd-3befb4b5101f
+md"""
+A continuación, implementamos una función para medir el error de ajuste:
+"""
+
+# ╔═╡ 95301630-fbe5-47df-a69c-b45d1c61e80a
+function residuoMEDO(par, O, t)
+  beta, gamma, h = par
+  S0 = 8000000.0 
+  I0 = values[1] / h  
+  R0 = 0.0
+  u0 = [S0, I0, R0]
+  tspan = (1, 20)
+  EDO = ODEProblem(modeloEDO, u0, tspan, [beta, gamma])
+  OSol = solve(EDO)
+  I_model = [h * OSol(t)[2] for t in tiempo]
+  res = values - I_model
+  nres = norm(res)
+  return nres
+end
+
+# ╔═╡ 8902ec37-4fbc-4a94-b09b-da93227116b5
+md"""
+Declaramos la función a minimizar:
+"""
+
+# ╔═╡ 9723dd49-4df8-4a50-92fd-c1ef0f46cc09
+rEDO(par) = residuoMEDO(par, values, tiempo)
+
+# ╔═╡ d497944c-589d-46c4-8ffd-ec48234da8f7
+md"""
+Y la optimizamos:
+"""
+
+# ╔═╡ ce61bf03-9a5a-480e-a9ea-352cdda83d94
+oEDO = Optim.optimize(rEDO, [0.1, 0.1, 0.1], NelderMead())
+
+# ╔═╡ e06e972c-1f19-4759-9776-d57cb99ff864
+md"""
+Obteniendo los siguientes valores para $\beta$, $\gamma$ y $h$, respectivamente:
+"""
+
+# ╔═╡ 74696ca3-8f3e-4129-9900-f4b38dc78309
+resEDO = oEDO.minimizer
+
+# ╔═╡ 8c443adb-692b-4b55-9e6a-577817bbcda9
+md"""
+Y teniendo el siguiente valor mínimo:
+"""
+
+# ╔═╡ 52ded531-752b-4427-bdfe-6a414d2bd426
+oEDO.minimum
+
+# ╔═╡ 1ceb7ca2-bb9a-4b70-b6ee-d6ec174c7b29
+md"""
+Visualicémolo con estos parámetros:
+"""
+
+# ╔═╡ 765e89bd-8c45-4c7c-80c3-c6a36c5fcf85
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SIR", size=(600, 400), color=:red, label="Ocupación")
+
+	beta, gamma, h = resEDO
+  	S0 = 8000000.0 
+  	I0 = values[1] / h 
+  	R0 = 0.0
+  	u0 = [S0, I0, R0]
+  	tspan = (tiempo[1], tiempo[end])
+  	EDO = ODEProblem(modeloEDO, u0, tspan, [beta, gamma])
+  	OSol = solve(EDO)
+  	I_model = [h * OSol(t)[2] for t in tiempo]
+	
+	plot!(tiempo,  I_model, color=:blue, linewidth=3, label="Modelo SIR")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3227,5 +3338,21 @@ version = "1.4.1+1"
 # ╟─c9824e17-8438-4d11-9a8b-e1334a205062
 # ╟─552d16a6-6bed-4487-86d3-8d67754e91b6
 # ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
+# ╟─7e0800a1-fdd7-4140-ab8f-bf6677d0a271
+# ╟─17d50742-8407-4d3a-a491-3cbd8deea720
+# ╟─7640a3e8-b0ee-46e8-af45-757228604036
+# ╠═3cc80e2c-49af-4d63-90aa-d86b91bcce6e
+# ╟─e3a60f67-2035-4ba2-acbd-3befb4b5101f
+# ╠═95301630-fbe5-47df-a69c-b45d1c61e80a
+# ╟─8902ec37-4fbc-4a94-b09b-da93227116b5
+# ╠═9723dd49-4df8-4a50-92fd-c1ef0f46cc09
+# ╟─d497944c-589d-46c4-8ffd-ec48234da8f7
+# ╠═ce61bf03-9a5a-480e-a9ea-352cdda83d94
+# ╟─e06e972c-1f19-4759-9776-d57cb99ff864
+# ╠═74696ca3-8f3e-4129-9900-f4b38dc78309
+# ╟─8c443adb-692b-4b55-9e6a-577817bbcda9
+# ╠═52ded531-752b-4427-bdfe-6a414d2bd426
+# ╟─1ceb7ca2-bb9a-4b70-b6ee-d6ec174c7b29
+# ╟─765e89bd-8c45-4c7c-80c3-c6a36c5fcf85
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
