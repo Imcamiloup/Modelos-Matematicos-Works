@@ -136,8 +136,8 @@ Podemos probar con distintos valores de $a$, $b$ y calcular el residuo (Por defe
 
 # ╔═╡ 5599267b-a4ed-4995-aa17-7714bbed8e78
 begin
-	aMlin = @bind aMLinealv Slider(-250:.1:250, show_value=true, default=186)
-	bMlin = @bind bMLinealv Slider(-20:.1:20, show_value=true, default=12)
+	aMlin = @bind aMLinealv Slider(-250:.1:250, show_value=true, default=199.068)
+	bMlin = @bind bMLinealv Slider(-20:.1:20, show_value=true, default=10.6459)
 	resMLinealv = residuoMLineal([aMLinealv, bMLinealv], values, tiempo)
 end;
 
@@ -152,7 +152,7 @@ residuo = $resMLinealv
 
 # ╔═╡ f77361b9-a981-412d-8efe-3629c4909985
 begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Fecha", legend=true, title="Ocupación de Camas UCI Covid-19", size=(600, 400), color=:red, label="Ocupación")
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Lineal", size=(600, 400), color=:red, label="Ocupación")
 	plot!(tiempo, [aMLinealv.+tiempo.*bMLinealv], color=:blue, linewidth=3, label="Modelo lineal")
 end
 
@@ -243,7 +243,7 @@ Encontrando los siguientes valores óptimos:
 """
 
 # ╔═╡ db98d90c-9b21-4de0-8c22-3572b3461b9b
-oCúbico.minimizer
+resCu = oCúbico.minimizer
 
 # ╔═╡ 5a9cf26e-553e-482c-918a-c9845f1ec183
 md"""
@@ -259,6 +259,17 @@ Es decir que la ecuación cúbica óptima es
 
 $$O(t) = 185.333+19.8622t+-1.24469t^2+0.0433457t^3$$
 """
+
+# ╔═╡ 3097376f-aad2-42f1-be36-122291ecb83b
+md"""
+y la podemos visualizar:
+"""
+
+# ╔═╡ 6a265d81-58c2-4d3c-9301-e576384c8b94
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Cúbico", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [resCu[1].+tiempo.*resCu[2].+tiempo.^2 .*resCu[3]+tiempo.^3 .*resCu[4]], color=:blue, linewidth=3, label="Modelo cúbico")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3098,7 +3109,7 @@ version = "1.4.1+1"
 # ╟─80bdb219-86bf-45f3-9409-3ccabb94bf26
 # ╠═7e1f32a4-3f73-4d7a-bd43-978d5a3b48f2
 # ╟─1391ee0a-bdc7-42a1-b3e4-e7fd521cf727
-# ╠═7a957fb4-62a9-4db0-a633-8fa0ee4e13e2
+# ╟─7a957fb4-62a9-4db0-a633-8fa0ee4e13e2
 # ╟─ed3a788c-ad86-49e7-b7b1-6a16e58edf1e
 # ╠═7319b980-921b-490c-b4fc-91d52dfc3bd8
 # ╟─ce9d24db-954e-43fe-816f-faf3940648a5
@@ -3111,9 +3122,11 @@ version = "1.4.1+1"
 # ╟─5842dfba-0082-4577-a8b1-4a603ff6cdef
 # ╠═3ef25b10-d59d-4ef0-9260-17d60d79297c
 # ╟─8a707e3b-7987-4e48-acf6-994746282f00
-# ╠═db98d90c-9b21-4de0-8c22-3572b3461b9b
+# ╟─db98d90c-9b21-4de0-8c22-3572b3461b9b
 # ╟─5a9cf26e-553e-482c-918a-c9845f1ec183
 # ╠═f6f7bd9e-7354-4eea-8eb1-bfbabc1a5d13
 # ╟─c0e1b0ee-1c1c-4b22-977f-844358b7f5fe
+# ╟─3097376f-aad2-42f1-be36-122291ecb83b
+# ╟─6a265d81-58c2-4d3c-9301-e576384c8b94
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
