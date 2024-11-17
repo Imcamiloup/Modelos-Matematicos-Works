@@ -33,7 +33,7 @@ md"#### Integrantes:
 
 # ╔═╡ 721ae26b-573f-4b01-8f01-60d65ceeafcf
 md"""
-**Problema 4:** Construya, para un conjunto de datos seleccionados, un modelo que considere adecuado y ajuste los valores de los parámetros. Es decir, repita el ejercicio arriba para otro conjunto de datos.
+**Problema 4:** Construya, para un conjunto de datos seleccionados, un modelo que considere adecuado y ajuste los valores de los parámetros. Es decir, repita el ejercicio arriba [1] para otro conjunto de datos.
 
 Puede usar librerías de aprendizaje de máquina, de interpolación o de ajustes diferentes a las mostradas en clase. Por ejemplo, puede usar los datos de la [tabla anexa](https://saludata.saludcapital.gov.co/osb/index.php/datos-de-salud/enfermedades-trasmisibles/ocupacion-ucis/).
 """
@@ -45,7 +45,7 @@ Para desarrollar este problemo utilizaremos las siguientes librerías:
 
 # ╔═╡ 4bd6bcb2-6127-45b9-8032-97a876288fe4
 md"""
-y utilizaremos los datos sugeridos para el problema, que son la ocupación de camas UCI por Covid-19 de los primeros veinte  días de enero de 2022 en Bogotá.
+y utilizaremos los datos sugeridos para el problema, que son la ocupación de camas UCI por Covid-19 de los primeros veinte  días de enero de 2022 en Bogotá [2].
 """
 
 # ╔═╡ fb28df9e-1ea5-4481-a7bd-28300499dfab
@@ -351,12 +351,17 @@ html"""
 
 # ╔═╡ 6b73f861-974b-4191-83fa-fcb05cc99a55
 html"""
-<h2 style="text-align:center">Modelo de ecuaciones diferenciales</h2>
+<h2 style="text-align:center">Modelos de ecuaciones diferenciales</h2>
+"""
+
+# ╔═╡ fd33b892-a02f-4a42-95e3-e53ea233fb89
+html"""
+<h3 style="text-align:center">Modelo SIR (Susceptible-Infectious-Recovered)</h3>
 """
 
 # ╔═╡ 7e0800a1-fdd7-4140-ab8f-bf6677d0a271
 md"""
-Probaremos el modelo SIR, el cual divide a la población en tres grupos: susceptibles, infectados y recuperados. Las ecuaciones asociadas son:
+Probaremos el modelo SIR [4], el cual divide a la población en tres grupos: susceptibles, infectados y recuperados. Las ecuaciones asociadas son:
 
 $$\frac{dS}{dt} = -\beta \frac{S\cdot I}{N}$$
 
@@ -366,7 +371,7 @@ $$\frac{dR}{dt} = \gamma I$$
 
 donde $S$ representa las personas que pueden contraer la infección, I las personas actualmente infectadas, R las personas que ya no son susceptibles y $N=S+I+R$. En cuanto a los parámetros, $\beta$ representa la tasa de infección y $\gamma$ la de recuperación.
 
-La tasa de ocupación de camas UCI estará asociada a la proporción de infectados que requiere ser hospitalizada, esto es $h\cdot I$ para $h\in (0, 1)$.
+El nivel de ocupación de camas UCI estará asociado a la proporción de infectados que requiere ser hospitalizada, esto es $h\cdot I$ para $h\in (0, 1)$.
 """
 
 # ╔═╡ 17d50742-8407-4d3a-a491-3cbd8deea720
@@ -396,20 +401,29 @@ A continuación, implementamos una función para medir el error de ajuste:
 """
 
 # ╔═╡ 95301630-fbe5-47df-a69c-b45d1c61e80a
-function residuoMEDO(par, O, t)
+function residuoMEDO(par, O, tiempo)
   beta, gamma, h = par
+	
   S0 = 8000000.0 
   I0 = values[1] / h  
   R0 = 0.0
+	
   u0 = [S0, I0, R0]
-  tspan = (1, 20)
+  tspan = (tiempo[1], tiempo[end])
+	
   EDO = ODEProblem(modeloEDO, u0, tspan, [beta, gamma])
   OSol = solve(EDO)
-  I_model = [h * OSol(t)[2] for t in tiempo]
-  res = values - I_model
+	
+  O_model = [h * OSol(t)[2] for t in tiempo]
+  res = O - O_model
   nres = norm(res)
   return nres
 end
+
+# ╔═╡ 309411fa-35eb-4a80-b244-e06a8e74d472
+md"""
+Nota: $S_0$ es una estimación de la población de Bogotá; estimaremos $I_0$ con base en los datos que tenemos y el parámetro $h$; asumimos que el número de personas recuperadas en el tiempo $1$ es $0$.
+"""
 
 # ╔═╡ 8902ec37-4fbc-4a94-b09b-da93227116b5
 md"""
@@ -464,6 +478,196 @@ begin
 	
 	plot!(tiempo,  I_model, color=:blue, linewidth=3, label="Modelo SIR")
 end
+
+# ╔═╡ f143162c-f3e8-4450-b9fb-9768284bf7cb
+md"""
+Adicionalmente, podemos ver cómo se comporta este modelo con ejemplos que no incluimos en el conjunto de datos inicial:
+"""
+
+# ╔═╡ 782b3bf5-54a8-4909-af98-2e344442a59f
+tiempos_next = [i for i in range(20, 35)]
+
+# ╔═╡ 316413eb-4f9a-4c8f-99d1-b2d55ddc6720
+values_next = [431, 452, 467, 488, 525, 602, 581, 608, 599, 612, 618, 631, 649, 626, 651, 653]
+
+# ╔═╡ d5b2a7de-535b-41fd-a5d9-b9fb939f4eeb
+begin
+	plot(vcat(tiempo, tiempos_next), vcat(values, values_next), seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SIR", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo,  I_model, color=:blue, linewidth=3, label="Modelo SIR")
+	plot!(tiempos_next,  [h*OSol(t)[2] for t in tiempos_next], color=:orange, linewidth=3, label="Modelo SIR - Predicción")
+end
+
+# ╔═╡ e3cba55b-1801-4437-a045-fb71da811d6c
+html"""
+<h3 style="text-align:center"> Modelo SEIR con Hospitalización y UCI</h3>
+"""
+
+# ╔═╡ 1f1852ac-b1b9-4f00-9b41-3c398bf2eda6
+md"""
+Este modelo es una extensión del SEIR (Susceptible-Exposed-Infectious-Recovered) que introduce un subgrupo de los infectados que requiere hospitalización ($H$) y otro que requiere atención en UCI ($C$); es una simplificación del modelo presentado en [5]. Consiste de las siguientes ecuaciones:
+
+$$\frac{dS}{dt}=-\beta \frac{S\cdot I}{N}$$
+
+$$\frac{dE}{dt}= \beta \frac{S\cdot I}{N} - \sigma E$$
+
+$$\frac{dI}{dt} = \sigma E - \gamma I - \delta H - \eta C$$
+
+$$\frac{dH}{dt} = \delta I - \alpha H$$
+
+$$\frac{dC}{dt} = \eta I - \lambda C$$
+
+$$\frac{dR}{dt} = \gamma I + \alpha H + \lambda C$$
+"""
+
+# ╔═╡ d5765d9c-011f-4f84-8f36-56e9ec6ed1b1
+md"""
+donde $S$ representa las personas susceptibles a enfermarse, $E$ las personas expuesstas a la enfermedad, $I$ las personas infectadas, $H$ representa las personas en hospitalización normal, $C$ las personas en camas UCI y $R$ las personas recuperadas. La población total es $N = S+E+I+H+C+R$.
+
+En cuanto a los parámetros, $\beta$ es la tasa de infección, $\sigma$ la tasa de velocidad a la que las personas expuestas se vuelven infecciosas, $\gamma$ la tasa de recuperación, $\delta$ la tasa de ingreso hospitalario, $\eta$ la tasa de ingreso a UCI, $\alpha$ la tasa de alta de hospitalización y $\lambda$ la tasa de alta de UCI.
+"""
+
+# ╔═╡ 1e599ef8-9cc3-4d7b-a5bd-113394dc188e
+md"""
+Queremos estimar los parámetros $\beta$, $\sigma$, $\gamma$, $\delta$, $\eta$, $\alpha$, $\lambda$ para obtener una buena aproximación de la variable $C$ (la ocupación de camas UCI), para ello definimos el modelo:
+"""
+
+# ╔═╡ 5f50413c-1932-4b11-aa1b-feaa3337d9fb
+function modeloEDO2(du, u, par, t)
+	S, E, I, H, C, R = u
+	beta, sigma, gamma, delta, eta, alpha, lambda = par
+	N = S + E + I + H + C + R
+	
+	du[1] = -beta*S*I/N
+	du[2] = beta*S*I/N - sigma*E
+	du[3] = sigma*E - gamma*I - delta*H - eta*C
+	du[4] = delta*I - alpha*H
+	du[5] = eta*I - lambda*C
+	du[6] = gamma*I + alpha*H + lambda*C
+end
+
+# ╔═╡ 333e4d90-1f58-41a3-b8d7-a694740ae138
+md"""
+A continuación, implementamos una función para medir el desajuste del modelo. Utilizaremos los parámetros $h_1$ y $h_2$ para estimar el número de personas expuestas al virus en el tiempo $1$ y el número de personas hospitalizadas en el tiempo $1$, respectivamente.
+"""
+
+# ╔═╡ 75b98e62-8a3e-43aa-8387-24389ef91428
+function residuoMEDO2(par, values, tiempo)
+	beta, sigma, gamma, delta, eta, alpha, lambda, h1, h2 = par
+
+	S0 = 8000000.0
+	E0 = S0 * h1
+	I0 = 1500000.0
+	H0 = I0 * h2
+	C0 = values[1]
+	R0 = 0.0
+
+	u0 = [S0, E0, I0, H0, C0, R0]
+	tspan = (tiempo[1], tiempo[end])
+
+	EDO = ODEProblem(modeloEDO2, u0, tspan, [beta, sigma, gamma, delta, eta, alpha, lambda])
+	Osol = solve(EDO)
+
+	O_model = [Osol(t)[5] for t in tiempo]
+	res = values - O_model
+	
+	return norm(res)
+end
+
+# ╔═╡ 5a9d494e-bfae-4398-97ce-7fa5dc48b609
+md"""
+Nota: Tomamos $S_0$ como una estimación de la población de Bogotá e $I_0$ con base en [3].
+"""
+
+# ╔═╡ 53ee3204-fcac-44e4-874d-eccc2f2f1d23
+md"""
+Declaramos la función a optimizar:
+"""
+
+# ╔═╡ 7d0f940c-fc0c-4e4f-8764-5bee609f1989
+rEDO2(par) = residuoMEDO2(par, values, tiempo)
+
+# ╔═╡ b44da75e-9371-4ca9-a2d7-2c43954ae359
+md"""
+y la optimizamos:
+"""
+
+# ╔═╡ 4725eb44-79e8-4d0d-b1b3-d4b8de23e9bb
+oEDO2 = Optim.optimize(rEDO2, [0.1, 0.5, 0.01, 0.3, 0.1, 0.4, 0.01, 0.5, 0.5], NelderMead())
+
+# ╔═╡ dccdea07-f998-49b3-93ee-41216913d527
+md"""
+Nota: Probando con distintos valores iniciales para los parámetros, el residuo puede cambiar drásticamente.
+"""
+
+# ╔═╡ 955fb2dc-b11a-4f97-a841-f84aa45a7e0c
+md"""
+Obteniendo los siguientes valores óptimos:
+"""
+
+# ╔═╡ 16711214-f8e6-4b29-99d2-c01fd5cead92
+resEDO2 = oEDO2.minimizer
+
+# ╔═╡ 42d4af87-6a18-4a2a-8192-07fb221a03c9
+md"""
+y el siguiente valor mínimo:
+"""
+
+# ╔═╡ d258b346-169b-48d4-a2bb-f1219b211aa1
+oEDO2.minimum
+
+# ╔═╡ c447e9a0-cf40-4a55-9513-e68faeb86d8a
+md"""
+Podemos visualizarlo:
+"""
+
+# ╔═╡ 7d9a476b-2201-42be-92f4-3cc0deb03538
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SEIR", size=(600, 400), color=:red, label="Ocupación")
+
+	beta1, sigma1, gamma1, delta1, eta1, alpha1, lambda1, h1, h2 = resEDO2
+	tspan1 = (1, 25)
+  	u01 = [8000000.0, 8000000.0 * h1, 1500000.0, 1500000.0 * h2, values[1], 0.0]
+  	EDO2 = ODEProblem(modeloEDO2, u01, tspan1, [beta1, sigma1, gamma1, delta1, eta1, alpha1, lambda1])
+	Osol1 = solve(EDO2)
+
+	O_model1 = [Osol1(t)[5] for t in tiempo]
+	
+	plot!(tiempo,  O_model1, color=:blue, linewidth=3, label="Modelo SEIR")
+end
+
+# ╔═╡ 984c358e-ec73-4f32-ae42-94b82b338029
+md"""
+Podemos ver cómo se comporta este modelo con ejemplos que no incluimos en el conjunto de datos inicial:
+"""
+
+# ╔═╡ 09646d1c-49ed-44ed-be41-108ae0c2634b
+begin
+	plot(vcat(tiempo, tiempos_next), vcat(values, values_next), seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SEIR", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo,  O_model1, color=:blue, linewidth=3, label="Modelo SEIR")
+	plot!(tiempos_next,  [Osol1(t)[5] for t in tiempos_next], color=:orange, linewidth=3, label="Modelo SEIR - Predicción")
+end
+
+# ╔═╡ 34506416-a59a-450f-835b-72f0fbc6ce74
+html"""
+<h2 style="text-align:center">Referencias</h2>
+"""
+
+# ╔═╡ 62e65843-4d73-4a18-8c7d-707b1e66a2d4
+md"""
+1. Ajuste de curvas. Laboratorio De Matemáticas. [https://labmatecc.github.io/Notebooks/AnalisisNumerico/AjusteDeCurvas/](https://labmatecc.github.io/Notebooks/AnalisisNumerico/AjusteDeCurvas/)
+
+
+2. Datos abiertos Bogotá. (n.d.). [https://datosabiertos.bogota.gov.co/dataset/ocupacion-de-camas-uci-covid-19-bogota-d-c](https://datosabiertos.bogota.gov.co/dataset/ocupacion-de-camas-uci-covid-19-bogota-d-c)
+
+
+3. Becerra, B. X. (2022, Enero 1). Colombia inicia 2022 con más de 12.000 contagios por covid-19 y con 44 fallecidos. Diario La República. [https://www.larepublica.co/economia/casos-de-covid-hoy-1-de-enero-en-colombia-3282789](https://www.larepublica.co/economia/casos-de-covid-hoy-1-de-enero-en-colombia-3282789)
+
+
+4. RPUBS - Modelo SIR - ODE - I. (n.d.). [https://rpubs.com/dsfernandez/675857](https://rpubs.com/dsfernandez/675857)
+
+
+5. Delli Compagni R, Cheng Z, Russo S, Van Boeckel TP. A hybrid Neural Network-SEIR model for forecasting intensive care occupancy in Switzerland during COVID-19 epidemics. PLoS One. 2022 Mar 3;17(3):e0263789. doi: 10.1371/journal.pone.0263789. PMID: 35239662; PMCID: PMC8893679.
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3338,12 +3542,14 @@ version = "1.4.1+1"
 # ╟─c9824e17-8438-4d11-9a8b-e1334a205062
 # ╟─552d16a6-6bed-4487-86d3-8d67754e91b6
 # ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
+# ╟─fd33b892-a02f-4a42-95e3-e53ea233fb89
 # ╟─7e0800a1-fdd7-4140-ab8f-bf6677d0a271
 # ╟─17d50742-8407-4d3a-a491-3cbd8deea720
 # ╟─7640a3e8-b0ee-46e8-af45-757228604036
 # ╠═3cc80e2c-49af-4d63-90aa-d86b91bcce6e
 # ╟─e3a60f67-2035-4ba2-acbd-3befb4b5101f
 # ╠═95301630-fbe5-47df-a69c-b45d1c61e80a
+# ╟─309411fa-35eb-4a80-b244-e06a8e74d472
 # ╟─8902ec37-4fbc-4a94-b09b-da93227116b5
 # ╠═9723dd49-4df8-4a50-92fd-c1ef0f46cc09
 # ╟─d497944c-589d-46c4-8ffd-ec48234da8f7
@@ -3354,5 +3560,32 @@ version = "1.4.1+1"
 # ╠═52ded531-752b-4427-bdfe-6a414d2bd426
 # ╟─1ceb7ca2-bb9a-4b70-b6ee-d6ec174c7b29
 # ╟─765e89bd-8c45-4c7c-80c3-c6a36c5fcf85
+# ╟─f143162c-f3e8-4450-b9fb-9768284bf7cb
+# ╟─782b3bf5-54a8-4909-af98-2e344442a59f
+# ╟─316413eb-4f9a-4c8f-99d1-b2d55ddc6720
+# ╟─d5b2a7de-535b-41fd-a5d9-b9fb939f4eeb
+# ╟─e3cba55b-1801-4437-a045-fb71da811d6c
+# ╟─1f1852ac-b1b9-4f00-9b41-3c398bf2eda6
+# ╟─d5765d9c-011f-4f84-8f36-56e9ec6ed1b1
+# ╟─1e599ef8-9cc3-4d7b-a5bd-113394dc188e
+# ╠═5f50413c-1932-4b11-aa1b-feaa3337d9fb
+# ╟─333e4d90-1f58-41a3-b8d7-a694740ae138
+# ╠═75b98e62-8a3e-43aa-8387-24389ef91428
+# ╟─5a9d494e-bfae-4398-97ce-7fa5dc48b609
+# ╟─53ee3204-fcac-44e4-874d-eccc2f2f1d23
+# ╠═7d0f940c-fc0c-4e4f-8764-5bee609f1989
+# ╟─b44da75e-9371-4ca9-a2d7-2c43954ae359
+# ╠═4725eb44-79e8-4d0d-b1b3-d4b8de23e9bb
+# ╟─dccdea07-f998-49b3-93ee-41216913d527
+# ╟─955fb2dc-b11a-4f97-a841-f84aa45a7e0c
+# ╠═16711214-f8e6-4b29-99d2-c01fd5cead92
+# ╟─42d4af87-6a18-4a2a-8192-07fb221a03c9
+# ╠═d258b346-169b-48d4-a2bb-f1219b211aa1
+# ╟─c447e9a0-cf40-4a55-9513-e68faeb86d8a
+# ╟─7d9a476b-2201-42be-92f4-3cc0deb03538
+# ╟─984c358e-ec73-4f32-ae42-94b82b338029
+# ╟─09646d1c-49ed-44ed-be41-108ae0c2634b
+# ╟─34506416-a59a-450f-835b-72f0fbc6ce74
+# ╟─62e65843-4d73-4a18-8c7d-707b1e66a2d4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
