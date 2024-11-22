@@ -349,6 +349,279 @@ html"""
 <h2 style="text-align:center">Modelos sugeridos</h2?
 """
 
+# ╔═╡ e6a10885-305c-4666-984c-294cc36e44e9
+html"""
+<h3 style="text-align:center">Modelo racional </h3>
+"""
+
+# ╔═╡ a453b406-4daf-429b-9cf2-66ddcc2f46d9
+md"""
+Ahora, probemos con el modelo:
+
+$$O(t)\approx A \frac{1}{t} + B$$
+
+"""
+
+# ╔═╡ 99c643d8-4077-4cfb-ba3e-aeba29119238
+md"""
+De nuevo, queremos hallar la optimización para los parametros A y B que nos den el mínimo error. En primer lugar, definimos la función que nos de el desajuste del modelo usando mínimos cuadrados
+"""
+
+# ╔═╡ 19b541cb-9840-4bac-b411-974f2a77bd10
+function residuoRAC(par, O, t)
+	A,B = par
+	one = fill(1, length(t))
+	Opred = A ./ t + B*one
+	nres = norm(O - Opred)
+	return nres
+end
+
+# ╔═╡ 4abcf1fc-44e4-4ae9-8a4a-b62f841dbe19
+md"""
+Veamos como se comporta este modelo con diferentes valores de los parametros A y B
+"""
+
+# ╔═╡ b93cd336-6967-442b-aa25-e079140e19f5
+begin
+	aMRAC = @bind aMRacv Slider(-500:.1:500, show_value=true, default=199.068)
+	bMRAC = @bind bMRacv Slider(-500:.1:500, show_value=true, default=10.6459)
+	resMRacv = residuoRAC([aMRacv, bMRacv], values, tiempo)
+end;
+
+# ╔═╡ 15834063-da8b-4739-b617-fa014b7511b5
+md"""
+a = $aMRAC
+
+b = $bMRAC
+
+residuo = $resMRacv
+"""
+
+# ╔═╡ 410c2bfd-27e0-4ad7-8c7d-639e96d561cd
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [aMRacv./tiempo.+bMRacv], color=:blue, linewidth=3, 
+		 
+		label="Modelo Racional")
+end
+
+# ╔═╡ 253df189-1341-4928-8dc6-81c6091d9e76
+md"""
+Ahora, a partir de la función de residuos, creamos una nueva función que depende solo de los parámetros. Es esta función la que optimizaremos
+"""
+
+# ╔═╡ c6d9fbfa-5234-4515-ba81-631d5ebf8154
+rMRacional(par) = residuoRAC(par, values, tiempo)
+
+# ╔═╡ aa741fce-7971-4251-8c25-a33a1906d197
+md"""
+Posteriormente realizamos la optimización. Para seleccionar los valores iniciales nos apoyamos de la exploración inicial realizada en el gráfico anterior
+
+"""
+
+# ╔═╡ ed139a17-1b1b-436d-8fa2-3b68d596b6c0
+oRacional = Optim.optimize(rMRacional, [-371.9, 328.8], LBFGS())
+
+# ╔═╡ 7e673373-0c1e-4e42-8409-0b86ec437dd6
+md"""
+Obtenemos los parametros óptimos
+"""
+
+# ╔═╡ e508e8e7-7479-4d44-a508-a50fcf8891e6
+racMin = oRacional.minimizer
+
+# ╔═╡ dda359c4-3289-4ff1-a406-7ff1581015e9
+md"""
+Y el desajuste mínimo encontrado
+"""
+
+# ╔═╡ 3df22914-0f7d-4eef-944e-a00f7f56bd4c
+oRacional.minimum
+
+# ╔═╡ fd2067f4-7679-4a3d-9b64-23811930b4f9
+md"""
+Veamos como se ve el ajuste de este modelo usando los parametros óptimos
+
+"""
+
+# ╔═╡ e2375f9a-0d6a-404b-8037-21f022963460
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [racMin[1]./tiempo.+racMin[2]], color=:blue, linewidth=3, 
+		 
+		label="Modelo Racional")
+end
+
+# ╔═╡ 241505fe-9d9a-410b-be23-fe8d58a6ec58
+md"""
+Como vemos, el ajuste no es muy acertado. Por tanto, procedemos a implementar un modelo un poco más complejo:
+
+$$O(t)\approx \frac{t}{At+ B}$$
+
+"""
+
+# ╔═╡ 2b096a03-1748-4455-8a3c-a063a29ffda1
+md"""
+Definimos la función que nos calcule el desajuste usando mínimos cuadrados:
+
+"""
+
+# ╔═╡ 3bdcdb42-af44-4ce0-82a6-a2274c4f338a
+function residuoRAC2(par, O, t)
+	A,B = par
+	one = fill(1, length(t))
+	Opred = t ./ (A.*t + B*one)
+	nres = norm(O - Opred)
+	return nres
+end
+
+# ╔═╡ 9ad97f28-0d39-4583-8015-2e9fec9b00f4
+md"""
+De nuevo, es útil observar el comportamiento de este modelo para distintos valores de nuestros parámetros:
+
+"""
+
+# ╔═╡ 71d61e53-d360-4792-bf2b-1c02780d9955
+begin
+	aMRAC2 = @bind aMRacv2 Slider(-1:.0001:1, show_value=true, default=199.068)
+	bMRAC2 = @bind bMRacv2 Slider(-1:.0001:1, show_value=true, default=10.6459)
+	resMRacv2 = residuoRAC2([aMRacv2, bMRacv2], values, tiempo)
+end;
+
+# ╔═╡ f2722416-6db5-4ddc-8310-768d2549c73c
+md"""
+a = $aMRAC2
+
+b = $bMRAC2
+
+residuo = $resMRacv2
+"""
+
+# ╔═╡ cdd1ad99-80b7-4e19-a9d5-9d7b0d6f2f7e
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional 2", size=(900,600), color=:red, label="Ocupación")
+	plot!(tiempo, tiempo./(aMRacv2.*tiempo.+bMRacv2), color=:blue, linewidth=3, 
+		 
+		label="Modelo Racional")
+end
+
+# ╔═╡ 641ca24d-a1a8-4538-aa3c-b6f2f58494a6
+md"""
+La razón por la que los valores elegibles de los parámeetros en el slider son tan pequeños es sencilla. Para valores grandes de A y B el modelo tiende a cero. Puesto que si $$At + B > t$$ entonces $$\frac{t}{At+ B} < 1$$.
+
+Por tanto, para evitar lo anterior, los valores de A y B son cercanos a cero
+
+"""
+
+# ╔═╡ 180cbe4a-fd61-4c90-883d-f83b79103ec6
+md"""
+A continuación creamos una función que depende únicamente de los parametros. Esta función será la cual usaremos para minimizar los valores de A y B
+
+"""
+
+# ╔═╡ fa91bc13-cbbf-44db-91bf-0555ed0376b4
+rMRacional2(par) = residuoRAC2(par, values, tiempo)
+
+# ╔═╡ 572c5522-d4fe-42da-841a-449566099d04
+md"""
+Dada la explicación anteriormente, le damos valores iniciales cercanos a cero a los parámetros
+
+"""
+
+# ╔═╡ 54eb8804-4887-4a58-bd9b-fcd9d5a4a633
+oRacional2 = Optim.optimize(rMRacional2, [0.01, 0.003], LBFGS())
+
+# ╔═╡ cf2d64bd-f191-488e-a13f-7be6bcaf729e
+racMin2 = oRacional2.minimizer
+
+# ╔═╡ f083b4e0-3371-48ed-8e21-bfc7dfc23a6b
+md"""
+Una vez que obtenemos los valores óptimos para los parámetros, graficamos la curva con estos 
+
+"""
+
+# ╔═╡ 2190eef8-254d-440e-9728-042c09f71575
+oRacional2.minimum
+
+# ╔═╡ 3ec46373-2fdd-4bd1-8c97-7dba659cb773
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [ tiempo./(racMin2[1].*tiempo.+racMin2[2])], color=:blue, linewidth=3, 
+		 
+		label="Modelo Racional")
+end
+
+# ╔═╡ a3896dbe-10ac-4f0a-a55c-e3c06c3b0755
+html"""
+<h3 style="text-align:center">Modelo potencia escalada </h3>
+"""
+
+# ╔═╡ 6fc008ef-58d5-465a-acb7-a4f542568fb7
+md"""
+Ahora consideremos el modelo 
+
+$$O(t)\approx Ct^A$$
+
+Procedemos a definir la función que nos calcule el desajuste de nuestro modelo
+"""
+
+# ╔═╡ 11575957-5efc-4037-91ec-25700df3044f
+function residuoPOTE(par, O, t)
+    C, A = par
+    println("Valores de t: ", t)  # Verifica los valores en t
+    println("Valores de A: ", A)
+    Opred = t .^ A
+    println("Valores de Opred: ", Opred)  # Imprime los valores de Opred
+    nres = norm(O - Opred)
+    return nres
+end
+
+# ╔═╡ 64b36656-e3d8-4ea7-8b3a-145ed0c8d0b4
+function prueba()
+	# Parámetros
+	C2 = 2.0          # Escalar
+	A2 = 1.5          # Decimal (Float64)
+	t2 = [0.1, 0.2, 0.3, 0.4, 0.5]  # Vector
+	
+	# Operación
+	Opred2 = C2 .* (t2 .^ A2)
+	
+	# Mostrar resultados
+	println(Opred2)
+end
+
+# ╔═╡ d0cdb514-94b1-42cd-a95e-0baede2f7d9e
+prueba()
+
+# ╔═╡ 1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
+md"""
+Veamos el comportamiento de nuestro modelo para diferentes valores de parámetros
+
+
+"""
+
+# ╔═╡ 465638a4-bc9f-4edf-a92f-c6d4ee014249
+begin
+	cMPOTE = @bind cMPotev Slider(1:1:2, show_value=true, default=199.068)
+	aMPOTE = @bind aMPotev Slider(1:1:2, show_value=true, default=10.6459)
+	resMPotev = residuoPOTE([cMPOTE, aMPOTE], values, tiempo)
+end;
+
+# ╔═╡ f5686dbf-d85c-4dbc-b99e-b6fb36fec00c
+rMPOTE(par) = residuoPOTE(par, values, tiempo)
+
+# ╔═╡ b119ab08-8c21-4da9-9915-f18cc709946b
+rMPOTE([0,100000])
+
+# ╔═╡ 7935260f-8209-4d86-a060-295af74d2858
+oPote = Optim.optimize(rMPOTE, [0, .9], LBFGS())
+
+# ╔═╡ f3fd2471-a4e6-4470-9369-3dcc3faa2b7e
+oPote.minimizer
+
+# ╔═╡ 061a834a-34fc-4ba5-804b-c227a13a8cce
+oPote.minimum
+
 # ╔═╡ 6b73f861-974b-4191-83fa-fcb05cc99a55
 html"""
 <h2 style="text-align:center">Modelos de ecuaciones diferenciales</h2>
@@ -856,28 +1129,28 @@ version = "5.12.0"
     ODEInterface = "54ca160b-1b9f-5127-a996-1867f4bc2a2c"
 
 [[deps.BoundaryValueDiffEqCore]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "ForwardDiff", "LineSearch", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolveFirstOrder", "PreallocationTools", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
-git-tree-sha1 = "bdb7c5ebcbf36f6ef0ae3117219fe766177e829c"
+deps = ["ADTypes", "Adapt", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "ForwardDiff", "LineSearch", "LineSearches", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolve", "PreallocationTools", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
+git-tree-sha1 = "b4556571d1e80faa5f62ac8732a07bae0ee24dc6"
 uuid = "56b672f2-a5fe-4263-ab2d-da677488eb3a"
-version = "1.1.0"
+version = "1.0.2"
 
 [[deps.BoundaryValueDiffEqFIRK]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LinearAlgebra", "LinearSolve", "Logging", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
-git-tree-sha1 = "7c7be9eeaa84cf46e30bd942ab30bcbaa2287510"
+deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LineSearch", "LineSearches", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolve", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
+git-tree-sha1 = "35e1e7822d1c77d85ecf568606ca64d60fbd39de"
 uuid = "85d9eb09-370e-4000-bb32-543851f73618"
-version = "1.1.0"
+version = "1.0.2"
 
 [[deps.BoundaryValueDiffEqMIRK]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LinearAlgebra", "LinearSolve", "Logging", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
-git-tree-sha1 = "b55ef58a2bdc6c0cc6947aa80e7e1d2ccc98ff00"
+deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LineSearch", "LineSearches", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolve", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
+git-tree-sha1 = "e1fa0dee3d8eca528ab96e765a52760fd7466ffa"
 uuid = "1a22d4ce-7765-49ea-b6f2-13c8438986a6"
-version = "1.1.0"
+version = "1.0.1"
 
 [[deps.BoundaryValueDiffEqShooting]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LinearAlgebra", "LinearSolve", "Logging", "OrdinaryDiffEq", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
-git-tree-sha1 = "90a2b6d928dbf3fd0adc63dce1a0f5fd39582448"
+deps = ["ADTypes", "Adapt", "ArrayInterface", "BandedMatrices", "BoundaryValueDiffEqCore", "ConcreteStructs", "DiffEqBase", "FastAlmostBandedMatrices", "FastClosures", "ForwardDiff", "LineSearch", "LineSearches", "LinearAlgebra", "LinearSolve", "Logging", "NonlinearSolve", "OrdinaryDiffEq", "PreallocationTools", "PrecompileTools", "Preferences", "RecursiveArrayTools", "Reexport", "SciMLBase", "Setfield", "SparseArrays", "SparseDiffTools"]
+git-tree-sha1 = "fac04445ab0fdfa29b62d84e1af6b21334753a94"
 uuid = "ed55bfe0-3725-4db6-871e-a1dc9f42a757"
-version = "1.1.0"
+version = "1.0.2"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -901,11 +1174,6 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.2+1"
-
-[[deps.Cassette]]
-git-tree-sha1 = "f8764df8d9d2aec2812f009a1ac39e46c33354b8"
-uuid = "7057c7e9-c182-5462-911a-8362d720325c"
-version = "0.3.14"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
@@ -1429,12 +1697,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1ed150b39aebcc805c26b93a8d0122c940f64ce2"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.14+0"
-
-[[deps.FunctionProperties]]
-deps = ["Cassette", "DiffRules"]
-git-tree-sha1 = "bf7c740307eb0ee80e05d8aafbd0c5a901578398"
-uuid = "f62d2435-5019-4c03-9749-2d4c77af0cbc"
-version = "0.1.2"
 
 [[deps.FunctionWrappers]]
 git-tree-sha1 = "d62485945ce5ae9c0c48f124a84998d755bae00e"
@@ -2065,28 +2327,6 @@ version = "3.15.1"
     SIAMFANLEquations = "084e46ad-d928-497d-ad5e-07fa361a48c4"
     SpeedMapping = "f1835b91-879b-4a3f-a438-e4baacf14412"
 
-[[deps.NonlinearSolveBase]]
-deps = ["ADTypes", "Adapt", "ArrayInterface", "CommonSolve", "Compat", "ConcreteStructs", "DifferentiationInterface", "EnzymeCore", "FastClosures", "FunctionProperties", "LinearAlgebra", "Markdown", "MaybeInplace", "Preferences", "Printf", "RecursiveArrayTools", "SciMLBase", "SciMLJacobianOperators", "SciMLOperators", "StaticArraysCore", "SymbolicIndexingInterface", "TimerOutputs"]
-git-tree-sha1 = "46772fc296d9f16c3ab78a8ef00008ab075de677"
-uuid = "be0214bd-f91f-a760-ac4e-3421ce2b2da0"
-version = "1.3.3"
-weakdeps = ["BandedMatrices", "DiffEqBase", "ForwardDiff", "LineSearch", "LinearSolve", "SparseArrays", "SparseMatrixColorings"]
-
-    [deps.NonlinearSolveBase.extensions]
-    NonlinearSolveBaseBandedMatricesExt = "BandedMatrices"
-    NonlinearSolveBaseDiffEqBaseExt = "DiffEqBase"
-    NonlinearSolveBaseForwardDiffExt = "ForwardDiff"
-    NonlinearSolveBaseLineSearchExt = "LineSearch"
-    NonlinearSolveBaseLinearSolveExt = "LinearSolve"
-    NonlinearSolveBaseSparseArraysExt = "SparseArrays"
-    NonlinearSolveBaseSparseMatrixColoringsExt = "SparseMatrixColorings"
-
-[[deps.NonlinearSolveFirstOrder]]
-deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConcreteStructs", "DiffEqBase", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "MaybeInplace", "NonlinearSolveBase", "PrecompileTools", "Reexport", "SciMLBase", "SciMLJacobianOperators", "Setfield", "StaticArraysCore"]
-git-tree-sha1 = "dc8535cecb0f9d978019e44b7144b9e84ab85424"
-uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
-version = "1.0.0"
-
 [[deps.OffsetArrays]]
 git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
@@ -2455,10 +2695,10 @@ uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.2.2"
 
 [[deps.Polynomials]]
-deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
-git-tree-sha1 = "adc25dbd4d13f148f3256b6d4743fe7e63a71c4a"
+deps = ["LinearAlgebra", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
+git-tree-sha1 = "1a9cfb2dc2c2f1bd63f1906d72af39a79b49b736"
 uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
-version = "4.0.12"
+version = "4.0.11"
 
     [deps.Polynomials.extensions]
     PolynomialsChainRulesCoreExt = "ChainRulesCore"
@@ -3019,9 +3259,9 @@ version = "3.7.2"
 
 [[deps.Symbolics]]
 deps = ["ADTypes", "ArrayInterface", "Bijections", "CommonWorldInvalidations", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "DynamicPolynomials", "IfElse", "LaTeXStrings", "Latexify", "Libdl", "LinearAlgebra", "LogExpFunctions", "MacroTools", "Markdown", "NaNMath", "PrecompileTools", "Primes", "RecipesBase", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "SymbolicIndexingInterface", "SymbolicLimits", "SymbolicUtils", "TermInterface"]
-git-tree-sha1 = "d5c0ea92aa7b14b0ffca575e07af48ecb9e83f7b"
+git-tree-sha1 = "2f8e9bb64b0a1d658fcf4f3c7bc145284ad0f69b"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "6.21.0"
+version = "6.20.0"
 
     [deps.Symbolics.extensions]
     SymbolicsForwardDiffExt = "ForwardDiff"
@@ -3495,12 +3735,12 @@ version = "1.4.1+1"
 # ╟─5e756abf-619f-44ff-8cdf-273344ce4686
 # ╟─8f447492-cbf1-4abc-a542-389add65da81
 # ╟─d8f88fee-bb8e-4dd1-8deb-c5b070b270b2
-# ╟─dbee1abf-7858-4ace-a339-2fab9064968b
+# ╠═dbee1abf-7858-4ace-a339-2fab9064968b
 # ╟─a97e1d99-69fa-44fe-9554-d41f4a2d2dfa
 # ╠═adb492a3-2d99-4082-b1b9-a421389204df
 # ╟─078a6bf7-8fbb-4cff-93d5-21c96655565a
 # ╟─5599267b-a4ed-4995-aa17-7714bbed8e78
-# ╟─a575e105-2142-460f-9c98-37486e00c361
+# ╠═a575e105-2142-460f-9c98-37486e00c361
 # ╟─f77361b9-a981-412d-8efe-3629c4909985
 # ╟─0fbfed51-9df7-4e4f-b63b-354706ed297e
 # ╠═9de8ddb3-2185-4846-b2b4-9199bd7a8fb9
@@ -3525,7 +3765,7 @@ version = "1.4.1+1"
 # ╠═f6f7bd9e-7354-4eea-8eb1-bfbabc1a5d13
 # ╟─c0e1b0ee-1c1c-4b22-977f-844358b7f5fe
 # ╟─3097376f-aad2-42f1-be36-122291ecb83b
-# ╟─6a265d81-58c2-4d3c-9301-e576384c8b94
+# ╠═6a265d81-58c2-4d3c-9301-e576384c8b94
 # ╟─2352442f-5289-4ae4-80ce-6c52292b4397
 # ╟─33f103bd-d43b-4403-a1e7-ac963051a6c6
 # ╟─b367f966-0d54-4824-b38f-fe78fac70748
@@ -3541,6 +3781,52 @@ version = "1.4.1+1"
 # ╟─b1bb8b57-4281-46aa-bd5a-51b737115d34
 # ╟─c9824e17-8438-4d11-9a8b-e1334a205062
 # ╟─552d16a6-6bed-4487-86d3-8d67754e91b6
+# ╟─e6a10885-305c-4666-984c-294cc36e44e9
+# ╟─a453b406-4daf-429b-9cf2-66ddcc2f46d9
+# ╟─99c643d8-4077-4cfb-ba3e-aeba29119238
+# ╠═19b541cb-9840-4bac-b411-974f2a77bd10
+# ╟─4abcf1fc-44e4-4ae9-8a4a-b62f841dbe19
+# ╟─b93cd336-6967-442b-aa25-e079140e19f5
+# ╟─15834063-da8b-4739-b617-fa014b7511b5
+# ╟─410c2bfd-27e0-4ad7-8c7d-639e96d561cd
+# ╟─253df189-1341-4928-8dc6-81c6091d9e76
+# ╠═c6d9fbfa-5234-4515-ba81-631d5ebf8154
+# ╟─aa741fce-7971-4251-8c25-a33a1906d197
+# ╠═ed139a17-1b1b-436d-8fa2-3b68d596b6c0
+# ╟─7e673373-0c1e-4e42-8409-0b86ec437dd6
+# ╠═e508e8e7-7479-4d44-a508-a50fcf8891e6
+# ╟─dda359c4-3289-4ff1-a406-7ff1581015e9
+# ╠═3df22914-0f7d-4eef-944e-a00f7f56bd4c
+# ╟─fd2067f4-7679-4a3d-9b64-23811930b4f9
+# ╟─e2375f9a-0d6a-404b-8037-21f022963460
+# ╟─241505fe-9d9a-410b-be23-fe8d58a6ec58
+# ╟─2b096a03-1748-4455-8a3c-a063a29ffda1
+# ╠═3bdcdb42-af44-4ce0-82a6-a2274c4f338a
+# ╟─9ad97f28-0d39-4583-8015-2e9fec9b00f4
+# ╟─71d61e53-d360-4792-bf2b-1c02780d9955
+# ╟─f2722416-6db5-4ddc-8310-768d2549c73c
+# ╟─cdd1ad99-80b7-4e19-a9d5-9d7b0d6f2f7e
+# ╟─641ca24d-a1a8-4538-aa3c-b6f2f58494a6
+# ╟─180cbe4a-fd61-4c90-883d-f83b79103ec6
+# ╠═fa91bc13-cbbf-44db-91bf-0555ed0376b4
+# ╟─572c5522-d4fe-42da-841a-449566099d04
+# ╠═54eb8804-4887-4a58-bd9b-fcd9d5a4a633
+# ╠═cf2d64bd-f191-488e-a13f-7be6bcaf729e
+# ╟─f083b4e0-3371-48ed-8e21-bfc7dfc23a6b
+# ╠═2190eef8-254d-440e-9728-042c09f71575
+# ╟─3ec46373-2fdd-4bd1-8c97-7dba659cb773
+# ╟─a3896dbe-10ac-4f0a-a55c-e3c06c3b0755
+# ╟─6fc008ef-58d5-465a-acb7-a4f542568fb7
+# ╠═11575957-5efc-4037-91ec-25700df3044f
+# ╠═64b36656-e3d8-4ea7-8b3a-145ed0c8d0b4
+# ╠═d0cdb514-94b1-42cd-a95e-0baede2f7d9e
+# ╟─1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
+# ╠═465638a4-bc9f-4edf-a92f-c6d4ee014249
+# ╠═f5686dbf-d85c-4dbc-b99e-b6fb36fec00c
+# ╠═b119ab08-8c21-4da9-9915-f18cc709946b
+# ╠═7935260f-8209-4d86-a060-295af74d2858
+# ╠═f3fd2471-a4e6-4470-9369-3dcc3faa2b7e
+# ╠═061a834a-34fc-4ba5-804b-c227a13a8cce
 # ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
 # ╟─fd33b892-a02f-4a42-95e3-e53ea233fb89
 # ╟─7e0800a1-fdd7-4140-ab8f-bf6677d0a271
