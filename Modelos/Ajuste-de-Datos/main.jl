@@ -551,66 +551,6 @@ begin
 		label="Modelo Racional")
 end
 
-# ╔═╡ a3896dbe-10ac-4f0a-a55c-e3c06c3b0755
-html"""
-<h3 style="text-align:center">Modelo potencia escalada </h3>
-"""
-
-# ╔═╡ 6fc008ef-58d5-465a-acb7-a4f542568fb7
-md"""
-Ahora consideremos el modelo 
-
-$$O(t)\approx Cte^{-Dt}$$
-
-Procedemos a definir la función que nos calcule el desajuste de nuestro modelo
-"""
-
-# ╔═╡ 11575957-5efc-4037-91ec-25700df3044f
-function residuoPOTE(args, O, t)
-    C, D = args
-	D = -1*D
-    Opred = C * exp.(D * t) .* t
-	
-    nres = norm(O - Opred)
-    return nres
-end
-
-# ╔═╡ 34f95813-3b6f-41d5-a64d-446f6ca63ab3
-rMPOTE(args) = residuoPOTE(args, values, tiempo)
-
-# ╔═╡ 5c68c9f7-85ae-42f3-9e78-2d17af6b5548
-oPote = Optim.optimize(rMPOTE, [1, 20], LBFGS())
-
-# ╔═╡ 4d5aab5a-5bb6-44b8-9051-18f868915763
-poteMin = oRacional2.minimizer
-
-# ╔═╡ 138ecda7-2736-4da6-a56a-68a0ab488c41
-oRacional2.minimum
-
-# ╔═╡ f2b82689-979b-4557-81f5-032d871d1ce2
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Exponencial", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [  poteMin[1] * exp.( -poteMin[2] .* tiempo) .* tiempo], color=:blue, linewidth=3, 
-		 
-		label="Modelo Racional")
-end
-
-# ╔═╡ 49a65980-6d37-41f5-9036-42cdd82b5d09
-function prueba()
-	println(tiempo, [  20 * exp.( -30 * tiempo) .* tiempo])
-	return
-end
-
-# ╔═╡ 13a32067-b399-4756-a745-10d94f19f2f3
-prueba()
-
-# ╔═╡ 1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
-md"""
-Veamos el comportamiento de nuestro modelo para diferentes valores de parámetros
-
-
-"""
-
 # ╔═╡ 6b73f861-974b-4191-83fa-fcb05cc99a55
 html"""
 <h2 style="text-align:center">Modelos de ecuaciones diferenciales</h2>
@@ -908,6 +848,18 @@ begin
 	plot!(tiempo,  O_model1, color=:blue, linewidth=3, label="Modelo SEIR")
 	plot!(tiempos_next,  [Osol1(t)[5] for t in tiempos_next], color=:orange, linewidth=3, label="Modelo SEIR - Predicción")
 end
+
+# ╔═╡ fb43a7a0-b3ec-4787-b464-2a18b2386cb7
+html"""
+<h2 style="text-align:center">Conclusiones</h2>
+"""
+
+# ╔═╡ bbf93e76-ede2-4847-9cf6-7872c3239784
+md"""
+- Los modelos que mejor comportamiento tienen son aquellos con mayor cantidad de parámetros. No obstante, tal como lo probamos para el modelo SEIR, estos modelos pierden de su capacidad predictiva debido a *sobreajuste*
+
+- En general, los modelos de ecuaciones resultaron tener un mejor desempeño y ser más interpretables.  Pues aunque modelos como el polinomio cúbico y de redes neuronales también tuvieron buenos desempeños, el valor de sus parámetros no es interpretable
+"""
 
 # ╔═╡ 34506416-a59a-450f-835b-72f0fbc6ce74
 html"""
@@ -3804,17 +3756,6 @@ version = "1.4.1+1"
 # ╟─f083b4e0-3371-48ed-8e21-bfc7dfc23a6b
 # ╠═2190eef8-254d-440e-9728-042c09f71575
 # ╟─3ec46373-2fdd-4bd1-8c97-7dba659cb773
-# ╟─a3896dbe-10ac-4f0a-a55c-e3c06c3b0755
-# ╠═6fc008ef-58d5-465a-acb7-a4f542568fb7
-# ╠═11575957-5efc-4037-91ec-25700df3044f
-# ╠═34f95813-3b6f-41d5-a64d-446f6ca63ab3
-# ╠═5c68c9f7-85ae-42f3-9e78-2d17af6b5548
-# ╠═4d5aab5a-5bb6-44b8-9051-18f868915763
-# ╠═138ecda7-2736-4da6-a56a-68a0ab488c41
-# ╠═f2b82689-979b-4557-81f5-032d871d1ce2
-# ╠═49a65980-6d37-41f5-9036-42cdd82b5d09
-# ╠═13a32067-b399-4756-a745-10d94f19f2f3
-# ╟─1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
 # ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
 # ╟─fd33b892-a02f-4a42-95e3-e53ea233fb89
 # ╟─7e0800a1-fdd7-4140-ab8f-bf6677d0a271
@@ -3859,6 +3800,8 @@ version = "1.4.1+1"
 # ╟─7d9a476b-2201-42be-92f4-3cc0deb03538
 # ╟─984c358e-ec73-4f32-ae42-94b82b338029
 # ╟─09646d1c-49ed-44ed-be41-108ae0c2634b
+# ╟─fb43a7a0-b3ec-4787-b464-2a18b2386cb7
+# ╟─bbf93e76-ede2-4847-9cf6-7872c3239784
 # ╟─34506416-a59a-450f-835b-72f0fbc6ce74
 # ╟─62e65843-4d73-4a18-8c7d-707b1e66a2d4
 # ╟─00000000-0000-0000-0000-000000000001
