@@ -560,37 +560,48 @@ html"""
 md"""
 Ahora consideremos el modelo 
 
-$$O(t)\approx Ct^A$$
+$$O(t)\approx Cte^{-Dt}$$
 
 Procedemos a definir la función que nos calcule el desajuste de nuestro modelo
 """
 
 # ╔═╡ 11575957-5efc-4037-91ec-25700df3044f
-function residuoPOTE(par, O, t)
-    C, A = par
-    println("Valores de t: ", t)  # Verifica los valores en t
-    println("Valores de A: ", A)
-    Opred = t .^ A
-    println("Valores de Opred: ", Opred)  # Imprime los valores de Opred
+function residuoPOTE(args, O, t)
+    C, D = args
+	D = -1*D
+    Opred = C * exp.(D * t) .* t
+	
     nres = norm(O - Opred)
     return nres
 end
 
-# ╔═╡ 64b36656-e3d8-4ea7-8b3a-145ed0c8d0b4
-function prueba()
-	# Parámetros
-	C2 = 2.0          # Escalar
-	A2 = 1.5          # Decimal (Float64)
-	t2 = [0.1, 0.2, 0.3, 0.4, 0.5]  # Vector
-	
-	# Operación
-	Opred2 = C2 .* (t2 .^ A2)
-	
-	# Mostrar resultados
-	println(Opred2)
+# ╔═╡ 34f95813-3b6f-41d5-a64d-446f6ca63ab3
+rMPOTE(args) = residuoPOTE(args, values, tiempo)
+
+# ╔═╡ 5c68c9f7-85ae-42f3-9e78-2d17af6b5548
+oPote = Optim.optimize(rMPOTE, [1, 20], LBFGS())
+
+# ╔═╡ 4d5aab5a-5bb6-44b8-9051-18f868915763
+poteMin = oRacional2.minimizer
+
+# ╔═╡ 138ecda7-2736-4da6-a56a-68a0ab488c41
+oRacional2.minimum
+
+# ╔═╡ f2b82689-979b-4557-81f5-032d871d1ce2
+begin
+	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Exponencial", size=(600, 400), color=:red, label="Ocupación")
+	plot!(tiempo, [  poteMin[1] * exp.( -poteMin[2] .* tiempo) .* tiempo], color=:blue, linewidth=3, 
+		 
+		label="Modelo Racional")
 end
 
-# ╔═╡ d0cdb514-94b1-42cd-a95e-0baede2f7d9e
+# ╔═╡ 49a65980-6d37-41f5-9036-42cdd82b5d09
+function prueba()
+	println(tiempo, [  20 * exp.( -30 * tiempo) .* tiempo])
+	return
+end
+
+# ╔═╡ 13a32067-b399-4756-a745-10d94f19f2f3
 prueba()
 
 # ╔═╡ 1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
@@ -599,28 +610,6 @@ Veamos el comportamiento de nuestro modelo para diferentes valores de parámetro
 
 
 """
-
-# ╔═╡ 465638a4-bc9f-4edf-a92f-c6d4ee014249
-begin
-	cMPOTE = @bind cMPotev Slider(1:1:2, show_value=true, default=199.068)
-	aMPOTE = @bind aMPotev Slider(1:1:2, show_value=true, default=10.6459)
-	resMPotev = residuoPOTE([cMPOTE, aMPOTE], values, tiempo)
-end;
-
-# ╔═╡ f5686dbf-d85c-4dbc-b99e-b6fb36fec00c
-rMPOTE(par) = residuoPOTE(par, values, tiempo)
-
-# ╔═╡ b119ab08-8c21-4da9-9915-f18cc709946b
-rMPOTE([0,100000])
-
-# ╔═╡ 7935260f-8209-4d86-a060-295af74d2858
-oPote = Optim.optimize(rMPOTE, [0, .9], LBFGS())
-
-# ╔═╡ f3fd2471-a4e6-4470-9369-3dcc3faa2b7e
-oPote.minimizer
-
-# ╔═╡ 061a834a-34fc-4ba5-804b-c227a13a8cce
-oPote.minimum
 
 # ╔═╡ 6b73f861-974b-4191-83fa-fcb05cc99a55
 html"""
@@ -3803,8 +3792,8 @@ version = "1.4.1+1"
 # ╟─2b096a03-1748-4455-8a3c-a063a29ffda1
 # ╠═3bdcdb42-af44-4ce0-82a6-a2274c4f338a
 # ╟─9ad97f28-0d39-4583-8015-2e9fec9b00f4
-# ╟─71d61e53-d360-4792-bf2b-1c02780d9955
-# ╟─f2722416-6db5-4ddc-8310-768d2549c73c
+# ╠═71d61e53-d360-4792-bf2b-1c02780d9955
+# ╠═f2722416-6db5-4ddc-8310-768d2549c73c
 # ╟─cdd1ad99-80b7-4e19-a9d5-9d7b0d6f2f7e
 # ╟─641ca24d-a1a8-4538-aa3c-b6f2f58494a6
 # ╟─180cbe4a-fd61-4c90-883d-f83b79103ec6
@@ -3816,17 +3805,16 @@ version = "1.4.1+1"
 # ╠═2190eef8-254d-440e-9728-042c09f71575
 # ╟─3ec46373-2fdd-4bd1-8c97-7dba659cb773
 # ╟─a3896dbe-10ac-4f0a-a55c-e3c06c3b0755
-# ╟─6fc008ef-58d5-465a-acb7-a4f542568fb7
+# ╠═6fc008ef-58d5-465a-acb7-a4f542568fb7
 # ╠═11575957-5efc-4037-91ec-25700df3044f
-# ╠═64b36656-e3d8-4ea7-8b3a-145ed0c8d0b4
-# ╠═d0cdb514-94b1-42cd-a95e-0baede2f7d9e
+# ╠═34f95813-3b6f-41d5-a64d-446f6ca63ab3
+# ╠═5c68c9f7-85ae-42f3-9e78-2d17af6b5548
+# ╠═4d5aab5a-5bb6-44b8-9051-18f868915763
+# ╠═138ecda7-2736-4da6-a56a-68a0ab488c41
+# ╠═f2b82689-979b-4557-81f5-032d871d1ce2
+# ╠═49a65980-6d37-41f5-9036-42cdd82b5d09
+# ╠═13a32067-b399-4756-a745-10d94f19f2f3
 # ╟─1f2bf9b5-1d2f-415a-9168-00d4ec2ab1fc
-# ╠═465638a4-bc9f-4edf-a92f-c6d4ee014249
-# ╠═f5686dbf-d85c-4dbc-b99e-b6fb36fec00c
-# ╠═b119ab08-8c21-4da9-9915-f18cc709946b
-# ╠═7935260f-8209-4d86-a060-295af74d2858
-# ╠═f3fd2471-a4e6-4470-9369-3dcc3faa2b7e
-# ╠═061a834a-34fc-4ba5-804b-c227a13a8cce
 # ╟─6b73f861-974b-4191-83fa-fcb05cc99a55
 # ╟─fd33b892-a02f-4a42-95e3-e53ea233fb89
 # ╟─7e0800a1-fdd7-4140-ab8f-bf6677d0a271
