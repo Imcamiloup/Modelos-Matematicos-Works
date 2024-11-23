@@ -702,6 +702,9 @@ plot!(
 
 end
 
+# ╔═╡ 26c649f1-6670-44a3-883c-865c869322a8
+
+
 # ╔═╡ e590b0ac-5e8c-4b26-bc4b-d576b372d721
 function residuoM4(par, O, t)
     C, A = par
@@ -3041,6 +3044,7 @@ version = "1.4.1+1"
 # ╠═d3045ada-9eea-48d7-a65f-33cd29f6380b
 # ╠═bff408b6-cd10-48d5-b162-644fefda90c8
 # ╠═c427d044-e40e-4923-a31e-299e80535a9b
+# ╠═26c649f1-6670-44a3-883c-865c869322a8
 # ╠═e590b0ac-5e8c-4b26-bc4b-d576b372d721
 # ╠═5efc73e2-12d9-43c7-a577-a59667f7044c
 # ╠═833616e1-55bf-4719-aac0-8bbeaa88d9c2
