@@ -4,1027 +4,129 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
+# ╔═╡ a0afb5ac-e1b6-11ef-2bec-15420f945e9b
+using DifferentialEquations, Optim
+
+# ╔═╡ 6efe264e-027a-49a4-b804-9c0d85f945b3
+using LinearAlgebra
+
+# ╔═╡ 69a33ad6-5f82-4fd0-b3c4-401d68f59dbd
+using Plots
+
+# ╔═╡ e9293b85-631d-4676-ae47-1ceb43775f2b
+md"""
+Consideramos el modelo
+
+$$\frac{dP}{dt} = B(t) - M(t) + I(t),$$
+
+donde
+
+$$B(t)=b_0P(t), \quad M(t)=m_0P(t), \quad I(t)=i_0P(t).$$
+
+Para este caso en particular, la solución analítica es:
+
+$$P(t) = P(0) \cdot e^{(b_0-m_0+i_0)t}.$$
+"""
+
+# ╔═╡ 653a764a-5f99-43b7-ac35-33a87da81b57
+# Modelo de crecimiento poblacional
+function modeloPop(du, u, par, t)
+  P = u[1]
+  b0, m0, i0 = par
+  du[1] = (b0 - m0 + i0) * P
 end
 
-# ╔═╡ 252baa9e-2a73-434f-a33c-836464dd9b01
-using Plots, LinearAlgebra, Optim, DifferentialEquations, PlutoUI, Dates , Statistics
-
-# ╔═╡ 31846f28-a3d2-11ef-1308-dd1e47ea992b
-html"""
-<h1 style="text-align: center"> Actividad Ajuste de Datos </h1>
-"""
-
-# ╔═╡ b022e54e-d9a3-450e-a601-047a57f53b10
-md"#### Integrantes: 
-* Luis Camilo Gómez Rodríguez.
-* Jose Simón Ramos Sandoval.
-* Tomas David Rodríguez Agudelo.
-"
-
-# ╔═╡ 721ae26b-573f-4b01-8f01-60d65ceeafcf
-md"""
-**Problema 4:** Construya, para un conjunto de datos seleccionados, un modelo que considere adecuado y ajuste los valores de los parámetros. Es decir, repita el ejercicio arriba [1] para otro conjunto de datos.
-
-Puede usar librerías de aprendizaje de máquina, de interpolación o de ajustes diferentes a las mostradas en clase. Por ejemplo, puede usar los datos de la [tabla anexa](https://saludata.saludcapital.gov.co/osb/index.php/datos-de-salud/enfermedades-trasmisibles/ocupacion-ucis/).
-"""
-
-# ╔═╡ a90f228e-2e72-44cb-8b7f-dbea8e53f7fb
-md"""
-Para desarrollar este problemo utilizaremos las siguientes librerías:
-"""
-
-# ╔═╡ 4bd6bcb2-6127-45b9-8032-97a876288fe4
-md"""
-y utilizaremos los datos sugeridos para el problema, que son la ocupación de camas UCI por Covid-19 de los primeros veinte  días de enero de 2022 en Bogotá [2].
-"""
-
-# ╔═╡ fb28df9e-1ea5-4481-a7bd-28300499dfab
-data = [
-	("1/01/2022",	222),
-	("2/01/2022",	209),
-	("3/01/2022",	217),
-	("4/01/2022",	245),
-	("5/01/2022",	252),
-	("6/01/2022",	278),
-	("7/01/2022",	291),
-	("8/01/2022",	299),
-	("9/01/2022",	302),
-	("10/01/2022",	292),
-	("11/01/2022",	311),
-	("12/01/2022",	306),
-	("13/01/2022",	326),
-	("14/01/2022",	332),
-	("15/01/2022",	368),
-	("16/01/2022",	356),
-	("17/01/2022",	373),
-	("18/01/2022",	397),
-	("19/01/2022",	410),
-	("20/01/2022",	431)]
-
-# ╔═╡ 5fceba2f-06eb-4173-8a64-92b4b9ff7b7a
-md"""
-A continuación separaremos el conjunto de datos en `dates` y `values`. Usamos la librería `Dates` para tipar mejor el conjunto de datos de las fechas (`yyyy/mm/dd`).
-"""
-
-# ╔═╡ da658b1f-f72d-48df-b2d2-0de17250219e
-dates = [Date(item[1], "dd/mm/yyyy") for item in data]
-
-# ╔═╡ 72f95577-4ec2-4464-a5f8-da59e64523e5
-values = [item[2] for item in data]
-
-# ╔═╡ 96ff62f9-ebdf-44a0-b9bd-1703a1f7c4d2
-md"""
-Visualicemos estos datos:
-"""
-
-# ╔═╡ 31fa6de2-b739-4c0e-a46e-cf3736d9d429
-plot(dates, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Fecha", legend=false, title="Ocupación de Camas UCI Covid-19", size=(600, 400), color=:red)
-
-# ╔═╡ 5e756abf-619f-44ff-8cdf-273344ce4686
-md"""
-Notaremos $O(t)$ como la ocupación de camas UCI por Covid-19 en Bogotá en el tiempo $t$, por simplicidad tomaremos:
-
-- 2022-01-01 como el tiempo 1.
-- 2022-01-02 como el tiempo 2.
-- etc...
-"""
-
-# ╔═╡ 8f447492-cbf1-4abc-a542-389add65da81
-tiempo = [i for i in 1:length(dates)]
-
-# ╔═╡ b4b1b6fc-6ec4-481e-b292-81e9d208a20f
-md"""
-Para este ejercicio, revisaremos algunos modelos sugeridos y un par de modelos de ecuaciones diferenciales.
-"""
-
-# ╔═╡ d8f88fee-bb8e-4dd1-8deb-c5b070b270b2
-html"""
-<h2 style="text-align:center">Modelo lineal</h2>
-"""
-
-# ╔═╡ dbee1abf-7858-4ace-a339-2fab9064968b
-md"""
-Para este modelo asumimos que el modelo lineal tiene la forma:
-
-$$O(t)\approx a+bt$$
-"""
-
-# ╔═╡ a97e1d99-69fa-44fe-9554-d41f4a2d2dfa
-md"""
-Queremos estimar los parámetros $a$ y $b$ tales que minimicen la siguiente función que, usando mínimos cuadrados, mide la norma del residuo (tamaño del desajuste entre el modelo lineal y los datos):
-"""
-
-# ╔═╡ adb492a3-2d99-4082-b1b9-a421389204df
-function residuoMLineal(par, O, t)
-	a, b = par
-	oneaux = fill(1, size(t))
-	Opred = a*oneaux + b*t
-	res = O - Opred
-	nres = norm(res)
-	return nres
-end
-
-# ╔═╡ 078a6bf7-8fbb-4cff-93d5-21c96655565a
-md"""
-Podemos probar con distintos valores de $a$, $b$ y calcular el residuo (Por defecto están los valores óptimos encontrados):
-"""
-
-# ╔═╡ 5599267b-a4ed-4995-aa17-7714bbed8e78
-begin
-	aMlin = @bind aMLinealv Slider(-250:.1:250, show_value=true, default=199.068)
-	bMlin = @bind bMLinealv Slider(-20:.1:20, show_value=true, default=10.6459)
-	resMLinealv = residuoMLineal([aMLinealv, bMLinealv], values, tiempo)
-end;
-
-# ╔═╡ 211e9d1b-d5ed-4b28-b8f5-9347119cf863
-md"""
-a = $aMlin
-
-b = $bMlin
-
-residuo = $resMLinealv
-"""
-
-# ╔═╡ 8d67cf0b-9064-4eef-95d1-2871c07e8ce8
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Lineal", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [aMLinealv.+tiempo.*bMLinealv], color=:blue, linewidth=3, label="Modelo lineal")
-end
-
-# ╔═╡ 72febc8a-dcb1-4a4d-a73d-6525448db360
-md"""
-Utilizando la librería de optimización `Optim`, calculamos el valor aproximado de los parámetros óptimos, para ello, definimos una función que depende solo de la variable de decisión:
-"""
-
-# ╔═╡ 9de8ddb3-2185-4846-b2b4-9199bd7a8fb9
-rMLineal(par) = residuoMLineal(par, values, tiempo)
-
-# ╔═╡ ff43e697-b95e-421f-bfb8-0830ed371e18
-md"""
-Y la optimizamos, utilizando `Optim.optimize`:
-"""
-
-# ╔═╡ b07450ac-a153-4868-a65d-1aac9793abec
-oLineal = Optim.optimize(rMLineal, [186.0, 12.0], LBFGS())
-
-# ╔═╡ 2dafc910-d876-4cad-9c27-9cd1a4c65184
-md"""
-Obteniendo los siguientes valores óptimos:
-"""
-
-# ╔═╡ a0b1346e-e1fc-4749-8e2d-784ac4d49479
-oLineal.minimizer
-
-# ╔═╡ 3bfa623e-16a9-4523-a196-becdec4a35a8
-md"""
-Y el valor mínimo encontrado es:
-"""
-
-# ╔═╡ 8a772488-b4db-4378-b06b-7547bf77326f
-oLineal.minimum
-
-# ╔═╡ 89157a1f-f3a3-47c6-8d23-2693ae0c2650
-md"""
-Es decir que la ecuación lineal óptima es
-
-$$O(t) = 199.058 + 10.6459 t.$$
-"""
-
-# ╔═╡ 26c0c9dc-0ef9-404a-ade0-19bc1fd0fc54
-html"""
-<h2 style="text-align:center">Modelo polinomio cúbico</h2>
-"""
-
-# ╔═╡ 6072d643-bb69-41cc-a721-f7a3371785c9
-md"""
-En este caso, asumimos que el modelo tiene la forma:
-
-$$O(t)\approx a+bt+ct^2+dt^3$$
-"""
-
-# ╔═╡ 31c66621-eb04-4811-bed4-c6d4db9402ae
-md"""
-Queremos estimar los parámetros $a$, $b$, $c$ y $d$ tales que minimicen la siguiente función que mide el desajuste (análoga a la del modelo lineal):
-"""
-
-# ╔═╡ 98234bc7-e7d5-4d6b-ba9e-7ae9392872be
-function residuoMcúbico(par, O, t)
-	a, b, c, d = par
-	oneaux = fill(1, length(t))
-	Opred = a*oneaux + b*t + c*t.^2 + d*t.^3
-	nres = norm(O-Opred)
-	return nres
-end
-
-# ╔═╡ df4738fe-f15a-4463-99db-d56b800d2b0e
-md"""
-De manera similar, definimos la función a minimizar que solo depende de los parámetros:
-"""
-
-# ╔═╡ 60bcc6a8-fe4b-4416-abe9-f4f2c14c56f3
-rMCúbico(par) = residuoMcúbico(par, values, tiempo)
-
-# ╔═╡ bb7708ba-a009-4dbd-8857-5e913a851bdb
-md"""
-La optimizamos:
-"""
-
-# ╔═╡ a99d7883-98bd-4bbf-a454-8f4b35f97d5a
-oCúbico = Optim.optimize(rMCúbico, [186.0, 12.0, 10.0, 10.0], LBFGS())
-
-# ╔═╡ caf52fdd-b192-4082-9c53-90762141bfe9
-md"""
-Encontrando los siguientes valores óptimos:
-"""
-
-# ╔═╡ 9f0b3dd5-142c-4a38-97ac-130849104dd1
-resCu = oCúbico.minimizer
-
-# ╔═╡ 19d2d591-a4ac-458e-a08a-b5bc1cbf5ce0
-md"""
-Y el siguiente valor mínimo (mejor que el modelo lineal):
-"""
-
-# ╔═╡ 7d331029-26d2-4487-ba57-86512c6f3406
-oCúbico.minimum
-
-# ╔═╡ c563e89b-84c5-4380-98ea-c47f23a8ab45
-md"""
-Es decir que la ecuación cúbica óptima es
-
-$$O(t) = 185.333+19.8622t+-1.24469t^2+0.0433457t^3$$
-"""
-
-# ╔═╡ 7a0bad59-5ff8-4c42-82b3-2f07251b66dc
-md"""
-y la podemos visualizar:
-"""
-
-# ╔═╡ 5a51c243-be09-4ca6-b4de-b2afa36e9dc0
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo cúbico", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [resCu[1].+tiempo.*resCu[2].+tiempo.^2 .*resCu[3]+tiempo.^3 .*resCu[4]], color=:blue, linewidth=3, label="Modelo cúbico")
-end
-
-# ╔═╡ 09fc44a4-4d00-460e-9585-af260c878368
-html"""
-<h2 style="text-align: center">Modelo de redes neuronales artificiales</h2>
-"""
-
-# ╔═╡ 37bcf16c-008b-4fb7-a602-3adcb46a7ca2
-md"""
-En este caso, asumimos que:
-
-$$O(t) \approx a\frac{1}{1+e^{bt+c}} + d \frac{1}{1+e^{ft+g}}$$
-"""
-
-# ╔═╡ aea58b06-15fe-468a-832a-d11ffdf85806
-md"""
-y queremos estimar los parámetros $a$, $b$, $c$, $d$, $f$ y $g$. Para esto, definimos una función para medir el desajuste del modelo utilizando mínimos cuadrados:
-"""
-
-# ╔═╡ e5cf1bbc-f2f9-4674-b389-84851e7eb42f
-function residuoMANN(par, O, t)
-	a, b, c, d, f, g = par
-	one = fill(1, length(t))
-	Opred = a*( one./ (one+exp.(b*t+c*one)  ))+d*( one./ (one+exp.(f*t+g*one)  ))
-	nres = norm(O - Opred)
-	return nres
-end
-
-# ╔═╡ dc8b4af0-fdbd-4c6b-ad25-1a6b05bdcf66
-md"""
-Ahora declaramos la función a optimizar:
-"""
-
-# ╔═╡ 12bbd609-8562-4611-9ddd-9e8479c76430
-rMANN(par) = residuoMANN(par, values, tiempo)
-
-# ╔═╡ 2fda614e-1c35-48a1-a1bf-8f08351baaba
-md"""
-y la optimizamos:
-"""
-
-# ╔═╡ 78eff8e2-245c-4b24-8806-077e3d0ad4c4
-oANN = Optim.optimize(rMANN, [0.01,.0001,.001,0.01,.0001,.001], BFGS())
-
-# ╔═╡ 132432cc-3d64-49a3-9279-6190f23a5073
-md"""
-Obtenemos los siguientes valores óptimos:
-"""
-
-# ╔═╡ 4a5f632f-b591-4379-b6c7-fdbdf6e74989
-resANN = oANN.minimizer
-
-# ╔═╡ b39af679-a4c8-4793-a0f3-356cc88bd39e
-md"""
-Y el siguiente valor mínimo:
-"""
-
-# ╔═╡ 20eac32b-877c-4035-acf9-78f74e857e43
-oANN.minimum
-
-# ╔═╡ 9eb7b9cc-8bca-4e7c-88cb-1ef978c46432
-md"""
-Llegando al siguiente modelo:
-
-$$O(t) \approx 145.32\frac{1}{1+e^{-0.454165t+
-8.30715}} + 335.343 \frac{1}{1+e^{-0.190257t-0.257313}}$$
-"""
-
-# ╔═╡ 502288ed-737a-48c3-b5e7-4511e4f525e5
-begin
-	oneaux = fill(1, length(values))
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo ANN", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [resANN[1] .* (oneaux ./ (oneaux .+ exp.(resANN[2].*tiempo .+ resANN[3] .* oneaux))) .+ resANN[4] .* (oneaux ./ (oneaux .+ exp.(resANN[5].*tiempo .+ resANN[6] .* oneaux)))], color=:blue, linewidth=3, label="Modelo ANN")
-end
-
-# ╔═╡ 159e6255-d3a7-470c-9022-ff5c1ebf02a2
-html"""
-<h2 style="text-align:center">Modelos sugeridos</h2?
-"""
-
-# ╔═╡ 83f91a02-6754-4f0c-9c22-1cc2df22e567
-html"""
-<h3 style="text-align:center">Modelo racional </h3>
-"""
-
-# ╔═╡ 58eee144-0aab-456b-b413-aee18610e99c
-md"""
-Ahora, probemos con el modelo:
-
-$$O(t)\approx A \frac{1}{t} + B$$
-
-"""
-
-# ╔═╡ ba15357d-bb76-4133-80a0-52b0f929ee3c
-md"""
-De nuevo, queremos hallar la optimización para los parametros A y B que nos den el mínimo error. En primer lugar, definimos la función que nos de el desajuste del modelo usando mínimos cuadrados
-"""
-
-# ╔═╡ 7db7410e-c05a-44ea-8a7d-ff366962d016
-function residuoRAC(par, O, t)
-	A,B = par
-	one = fill(1, length(t))
-	Opred = A ./ t + B*one
-	nres = norm(O - Opred)
-	return nres
-end
-
-# ╔═╡ dd9d5a07-5d20-4abc-a415-7894c6da30c7
-begin
-	aMRAC = @bind aMRacv Slider(-500:.1:500, show_value=true, default=199.068)
-	bMRAC = @bind bMRacv Slider(-500:.1:500, show_value=true, default=10.6459)
-	resMRacv = residuoRAC([aMRacv, bMRacv], values, tiempo)
-end;
-
-# ╔═╡ c05066f5-2856-4a8e-badd-a8319c87a335
-md"""
-a = $aMRAC
-
-b = $bMRAC
-
-residuo = $resMRacv
-"""
-
-# ╔═╡ 012d0dfb-3102-4483-9498-19e34217c3d8
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [aMRacv./tiempo.+bMRacv], color=:blue, linewidth=3, 
-		 
-		label="Modelo Racional")
-end
-
-# ╔═╡ d8e66a0d-984f-4e86-a321-6f9e84f2f9bc
-md"""
-Ahora, a partir de la función de residuos, creamos una nueva función que depende solo de los parámetros. Es esta función la que optimizaremos
-"""
-
-# ╔═╡ 0762f678-df69-4407-876d-8bcb7584332f
-rMRacional(par) = residuoRAC(par, values, tiempo)
-
-# ╔═╡ 186dcc6c-9280-4ca5-9253-431d059791da
-md"""
-Posteriormente realizamos la optimización. Para seleccionar los valores iniciales nos apoyamos de la exploración inicial realizada en el gráfico anterior
-
-"""
-
-# ╔═╡ 05cc35d5-617c-4db0-a978-e178c6ec6e5f
-oRacional = Optim.optimize(rMRacional, [-371.9, 328.8], LBFGS())
-
-# ╔═╡ 988b60df-1952-4547-9c31-49bfad1c2f51
-md"""
-Obtenemos los parametros óptimos
-"""
-
-# ╔═╡ ccc21583-04fd-4696-9dfb-f7794533a048
-racMin = oRacional.minimizer
-
-# ╔═╡ 12692e78-9bbf-430e-9b56-a2ca30f3052a
-md"""
-Y el desajuste mínimo encontrado
-"""
-
-# ╔═╡ d4ca8a90-6592-4912-92e8-60323a4eb3e0
-oRacional.minimum
-
-# ╔═╡ 7c41652e-d720-42f8-90af-11966738f863
-md"""
-Veamos como se ve el ajuste de este modelo usando los parametros óptimos
-
-"""
-
-# ╔═╡ 82dc375b-ffc0-46aa-ab29-73b53777e3d1
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [racMin[1]./tiempo.+racMin[2]], color=:blue, linewidth=3, 
-		 
-		label="Modelo Racional")
-end
-
-# ╔═╡ a0c8e8a5-41cb-44d9-9ade-3c552ab78a8b
-md"""
-Como vemos, el ajuste no es muy acertado. Por tanto, procedemos a implementar un modelo un poco más complejo:
-
-$$O(t)\approx \frac{t}{At+ B}$$
-
-"""
-
-# ╔═╡ 659767a3-115c-42d6-b7da-e4191f82221e
-md"""
-Definimos la función que nos calcule el desajuste usando mínimos cuadrados:
-
-"""
-
-# ╔═╡ e389cd73-1fc2-45d7-9b5e-feef57a3cbe7
-function residuoRAC2(par, O, t)
-	A,B = par
-	one = fill(1, length(t))
-	Opred = t ./ (A.*t + B*one)
-	nres = norm(O - Opred)
-	return nres
-end
-
-# ╔═╡ 67c80b45-6065-4b6c-b3ec-ddb10308ede7
-md"""
-De nuevo, es útil observar el comportamiento de este modelo para distintos valores de nuestros parámetros:
-
-"""
-
-# ╔═╡ 0bd771d4-593b-4dcd-bb19-ea0590705399
-begin
-	aMRAC2 = @bind aMRacv2 Slider(-1:.0001:1, show_value=true, default=199.068)
-	bMRAC2 = @bind bMRacv2 Slider(-1:.0001:1, show_value=true, default=10.6459)
-	resMRacv2 = residuoRAC2([aMRacv2, bMRacv2], values, tiempo)
-end;
-
-
-# ╔═╡ c86dff9a-d027-4a8f-a4a3-4b72eac14bb1
-md"""
-a = $aMRAC2
-
-b = $bMRAC2
-
-residuo = $resMRacv2
-"""
-
-# ╔═╡ 3d16e12c-f443-442a-8451-97e98699e22c
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional 2", size=(900,600), color=:red, label="Ocupación")
-	plot!(tiempo, tiempo./(aMRacv2.*tiempo.+bMRacv2), color=:blue, linewidth=3, 
-		 
-		label="Modelo Racional")
-end
-
-# ╔═╡ 910a9eaf-c4a0-4b60-a2f9-8cf9934e4255
-md"""
-La razón por la que los valores elegibles de los parámeetros en el slider son tan pequeños es sencilla. Para valores grandes de A y B el modelo tiende a cero. Puesto que si $$At + B > t$$ entonces $$\frac{t}{At+ B} < 1$$.
-
-Por tanto, para evitar lo anterior, los valores de A y B son cercanos a cero
-
-"""
-
-# ╔═╡ e5140606-6a93-4e6b-9bc9-44968b67f12c
-md"""
-A continuación creamos una función que depende únicamente de los parametros. Esta función será la cual usaremos para minimizar los valores de A y B
-
-"""
-
-# ╔═╡ 21c65555-36a5-4d5e-90a3-418335140369
-rMRacional2(par) = residuoRAC2(par, values, tiempo)
-
-# ╔═╡ 9b10d7a8-5e60-4ac8-a4c8-25534ec4e2ba
-md"""
-Dada la explicación anteriormente, le damos valores iniciales cercanos a cero a los parámetros
-
-"""
-
-# ╔═╡ b8ef6f0f-4f02-481a-8f00-e3f9195e2666
-oRacional2 = Optim.optimize(rMRacional2, [0.01, 0.003], LBFGS())
-
-# ╔═╡ 387ab5e9-dd12-42cb-9610-f9d8e5b12b28
-racMin2 = oRacional2.minimizer
-
-# ╔═╡ 518efbb6-6ea1-48f2-8637-be365ad0412c
-md"""
-Una vez que obtenemos los valores óptimos para los parámetros, graficamos la curva con estos 
-
-"""
-
-# ╔═╡ 73e9ba9b-b2c6-43bd-ad5f-e5a01c2a6a5d
-oRacional2.minimum
-
-# ╔═╡ 05be096a-4419-436e-b35e-d2f29ffd13d0
-begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo Racional", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo, [ tiempo./(racMin2[1].*tiempo.+racMin2[2])], color=:blue, linewidth=3, 
-		 
-		label="Modelo Racional")
-end
-
-# ╔═╡ 7d645153-c982-4431-94ef-df1779026b71
-html"""
-<h2 style="text-align:center">Modelos de ecuaciones diferenciales</h2>
-"""
-
-# ╔═╡ 7a74f797-8224-47de-9990-d7b8bbccbe79
-html"""
-<h3 style="text-align:center">Modelo SIR (Susceptible-Infectious-Recovered)</h3>
-"""
-
-# ╔═╡ ccb1725f-f082-466d-a5cc-c71c472ff15e
-md"""
-Probaremos el modelo SIR [4], el cual divide a la población en tres grupos: susceptibles, infectados y recuperados. Las ecuaciones asociadas son:
-
-$$\frac{dS}{dt} = -\beta \frac{S\cdot I}{N}$$
-
-$$\frac{dI}{dt} = \beta \frac{S\cdot I}{N}-\gamma I$$
-
-$$\frac{dR}{dt} = \gamma I$$
-
-donde $S$ representa las personas que pueden contraer la infección, I las personas actualmente infectadas, R las personas que ya no son susceptibles y $N=S+I+R$. En cuanto a los parámetros, $\beta$ representa la tasa de infección y $\gamma$ la de recuperación.
-
-El nivel de ocupación de camas UCI estará asociado a la proporción de infectados que requiere ser hospitalizada, esto es $h\cdot I$ para $h\in (0, 1)$.
-"""
-
-# ╔═╡ d3fdb732-2f42-420e-bc1c-06c5caf544ae
-md"""
-Queremos encontrar los parámetros $\beta$, $\gamma$ y $h$ más óptimos.
-"""
-
-# ╔═╡ 5686a040-10c3-49e8-992e-69114f48fe27
-md"""
-En primer lugar, definimos el modelo:
-"""
-
-# ╔═╡ d35cf3ee-4f34-4102-a185-a01136e5db06
-function modeloEDO(du, u, par, t)
-  S, I, R = u
-  beta, gamma = par
-  N = S + I + R
-
-  du[1] = -(beta*S*I)/N          
-  du[2] = (beta*S*I)/N - gamma*I    
-  du[3] = gamma*I                      
-end
-
-# ╔═╡ 75631b22-6593-4e2b-8d4d-2d57c04fed30
-md"""
-A continuación, implementamos una función para medir el error de ajuste:
-"""
-
-# ╔═╡ 8cf8aba4-a038-4e8a-80b4-27143728efdb
-function residuoMEDO(par, O, tiempo)
-  beta, gamma, h = par
-	
-  S0 = 8000000.0 
-  I0 = values[1] / h  
-  R0 = 0.0
-	
-  u0 = [S0, I0, R0]
+# ╔═╡ f5064490-5c90-4166-a8d5-c816941c26aa
+# Función que calcula el residuo (error) entre el modelo y los datos observados
+function residuoPop(par, pop_obs, tiempo)
+  P0 = pop_obs[1]
+  u0 = [P0]
   tspan = (tiempo[1], tiempo[end])
-	
-  EDO = ODEProblem(modeloEDO, u0, tspan, [beta, gamma])
-  OSol = solve(EDO)
-	
-  O_model = [h * OSol(t)[2] for t in tiempo]
-  res = O - O_model
-  nres = norm(res)
-  return nres
+  prob = ODEProblem(modeloPop, u0, tspan, par)
+  sol = solve(prob, saveat=tiempo)
+  # Extraemos la población modelada en cada instante de tiempo
+  pop_model = [sol(t)[1] for t in tiempo]
+  res = pop_obs .- pop_model
+  return norm(res)
 end
 
-# ╔═╡ bcb2c7b8-2b94-4828-b1f8-cd7ca058c055
-md"""
-Nota: $S_0$ es una estimación de la población de Bogotá; estimaremos $I_0$ con base en los datos que tenemos y el parámetro $h$; asumimos que el número de personas recuperadas en el tiempo $1$ es $0$.
-"""
+# ╔═╡ 8bdf1282-ae7a-48c2-b731-aa6ddac3b662
+# Datos de población y tiempo (años)
+# Por ejemplo, usando los datos de la tabla:
+años = [1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989,
+        1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+        2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+        2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
+        2020, 2021, 2022, 2023, 2024]
 
-# ╔═╡ bf626898-cae4-4bdd-b200-ebbe227dc940
-md"""
-Declaramos la función a minimizar:
-"""
+# ╔═╡ 3352a50c-a92e-49dd-926c-213d5d42901e
+poblacion = [3753117.0, 3876219.0, 4000258.0, 4125066.0, 4250881.0, 4376707.0,
+             4503632.0, 4629733.0, 4755662.0, 4882163.0, 5009197.0, 5135929.0,
+             5263300.0, 5390988.0, 5518215.0, 5645134.0, 5771303.0, 5894809.0,
+             6017421.0, 6137769.0, 6255614.0, 6370718.0, 6484116.0, 6593050.0,
+             6695901.0, 6790992.0, 6873842.0, 6945389.0, 7009432.0, 7062402.0,
+             7102952.0, 7136774.0, 7169750.0, 7201046.0, 7233450.0, 7268171.0,
+             7304512.0, 7352743.0, 7428317.0, 7615712.0, 7760096.0, 7839641.0,
+             7889727.0, 7923763.0, 7946067.0]
 
-# ╔═╡ 1c70526b-5003-4a8d-b5c1-4054f475ab1a
-rEDO(par) = residuoMEDO(par, values, tiempo)
+# ╔═╡ 1149f571-4f0b-4f87-8b51-9018c1668387
+# Función a minimizar
+rPop(par) = residuoPop(par, poblacion, años)
 
-# ╔═╡ 1830ef6a-5c51-468d-ae4b-04270c486882
+# ╔═╡ dcf6a7f7-b5a0-4f6f-acdc-dea2d3a1ae5d
+# Ajuste de parámetros
+# Usamos una conjetura inicial para [b0, m0, i0].
+# Por ejemplo, dado que en 1980 se tenía:
+#   natalidad ≈ 0.0254, mortalidad ≈ 0.0048, migración ≈ 0.0121,
+# podríamos iniciar con esos valores.
+par_inicial = [0.0254, 0.0048, 0.0121]
 
+# ╔═╡ 11c0c2e7-0dc6-4742-bda5-709d4f6ad597
+opt = Optim.optimize(rPop, par_inicial, NelderMead())
 
-# ╔═╡ 388921e7-0e17-42f6-a69b-0b2f3a40c765
-oEDO = Optim.optimize(rEDO, [0.1, 0.1, 0.1], NelderMead())
+# ╔═╡ 50ec5f65-f938-4a58-970f-3378ae0535c1
+par_est = opt.minimizer
 
-# ╔═╡ 3b13e361-f850-4842-b7ad-e707cc98c0e8
-md"""
-Obteniendo los siguientes valores para $\beta$, $\gamma$ y $h$, respectivamente:
-"""
-
-# ╔═╡ 8e0dc74a-3660-4856-98fe-e6634cbb2392
-resEDO = oEDO.minimizer
-
-# ╔═╡ 617c3eb5-ef67-4bfa-ace9-8e0d09c14519
-md"""
-Y teniendo el siguiente valor mínimo:
-"""
-
-# ╔═╡ e8101d81-2e1d-476b-a470-8d0fa643e2fc
-oEDO.minimum
-
-# ╔═╡ b0eca24c-2762-4c03-a50e-3d2b7d98cbe4
-md"""
-Visualicémolo con estos parámetros:
-"""
-
-# ╔═╡ 9b785dd1-bbdf-42ff-b925-dd1e259da04e
+# ╔═╡ cce0ffdd-3021-455e-9e3e-e581c4d00f1d
 begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SIR", size=(600, 400), color=:red, label="Ocupación")
-
-	beta, gamma, h = resEDO
-  	S0 = 8000000.0 
-  	I0 = values[1] / h 
-  	R0 = 0.0
-  	u0 = [S0, I0, R0]
-  	tspan = (tiempo[1], tiempo[end])
-  	EDO = ODEProblem(modeloEDO, u0, tspan, [beta, gamma])
-  	OSol = solve(EDO)
-  	I_model = [h * OSol(t)[2] for t in tiempo]
-	
-	plot!(tiempo,  I_model, color=:blue, linewidth=3, label="Modelo SIR")
+	println("Parámetros estimados:")
+	println("b0 = ", par_est[1])
+	println("m0 = ", par_est[2])
+	println("i0 = ", par_est[3])
 end
 
-# ╔═╡ da5bddbc-6fc2-4187-9c18-d5dc1a259c80
-md"""
-Adicionalmente, podemos ver cómo se comporta este modelo con ejemplos que no incluimos en el conjunto de datos inicial:
-"""
-
-# ╔═╡ 0e9d6863-4faf-442d-87c2-e7f6b9e3fa04
-tiempos_next = [i for i in range(20, 35)]
-
-# ╔═╡ c25c21ce-cbdb-4e85-8e7c-bd6903bd4739
-values_next = [431, 452, 467, 488, 525, 602, 581, 608, 599, 612, 618, 631, 649, 626, 651, 653]
-
-# ╔═╡ bb1047cd-7f44-4128-8dd6-bdcf05e6611d
+# ╔═╡ 3e551ff9-85c0-4561-bd7d-22bb5b2ab02f
 begin
-	plot(vcat(tiempo, tiempos_next), vcat(values, values_next), seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SIR", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo,  I_model, color=:blue, linewidth=3, label="Modelo SIR")
-	plot!(tiempos_next,  [h*OSol(t)[2] for t in tiempos_next], color=:orange, linewidth=3, label="Modelo SIR - Predicción")
+	# Resolver la ecuación diferencial con los parámetros óptimos
+	P0 = poblacion[1]
+	u0 = [P0]
+	tspan = (años[1], años[end])
+	prob = ODEProblem(modeloPop, u0, tspan, par_est)
+	sol = solve(prob, saveat=años)
 end
 
-# ╔═╡ 6ae7332b-db33-4c19-9815-c2fbb1bb4c5b
-html"""
-<h3 style="text-align:center"> Modelo SEIR con Hospitalización y UCI</h3>
-"""
-
-# ╔═╡ 298aaa47-1887-4724-8c57-c425770f8c90
-md"""
-Este modelo es una extensión del SEIR (Susceptible-Exposed-Infectious-Recovered) que introduce un subgrupo de los infectados que requiere hospitalización ($H$) y otro que requiere atención en UCI ($C$); es una simplificación del modelo presentado en [5]. Consiste de las siguientes ecuaciones:
-
-$$\frac{dS}{dt}=-\beta \frac{S\cdot I}{N}$$
-
-$$\frac{dE}{dt}= \beta \frac{S\cdot I}{N} - \sigma E$$
-
-$$\frac{dI}{dt} = \sigma E - \gamma I - \delta H - \eta C$$
-
-$$\frac{dH}{dt} = \delta I - \alpha H$$
-
-$$\frac{dC}{dt} = \eta I - \lambda C$$
-
-$$\frac{dR}{dt} = \gamma I + \alpha H + \lambda C$$
-"""
-
-# ╔═╡ 997e5517-a57c-47af-9587-fe72327431d3
-md"""
-donde $S$ representa las personas susceptibles a enfermarse, $E$ las personas expuesstas a la enfermedad, $I$ las personas infectadas, $H$ representa las personas en hospitalización normal, $C$ las personas en camas UCI y $R$ las personas recuperadas. La población total es $N = S+E+I+H+C+R$.
-
-En cuanto a los parámetros, $\beta$ es la tasa de infección, $\sigma$ la tasa de velocidad a la que las personas expuestas se vuelven infecciosas, $\gamma$ la tasa de recuperación, $\delta$ la tasa de ingreso hospitalario, $\eta$ la tasa de ingreso a UCI, $\alpha$ la tasa de alta de hospitalización y $\lambda$ la tasa de alta de UCI.
-"""
-
-
-# ╔═╡ 63ae4780-e30e-485a-9228-eb3387f49e41
-md"""
-Queremos estimar los parámetros $\beta$, $\sigma$, $\gamma$, $\delta$, $\eta$, $\alpha$, $\lambda$ para obtener una buena aproximación de la variable $C$ (la ocupación de camas UCI), para ello definimos el modelo:
-"""
-
-# ╔═╡ f63f2fa6-9106-46cd-b4bd-f62fe82f3d25
-function modeloEDO2(du, u, par, t)
-	S, E, I, H, C, R = u
-	beta, sigma, gamma, delta, eta, alpha, lambda = par
-	N = S + E + I + H + C + R
-	
-	du[1] = -beta*S*I/N
-	du[2] = beta*S*I/N - sigma*E
-	du[3] = sigma*E - gamma*I - delta*H - eta*C
-	du[4] = delta*I - alpha*H
-	du[5] = eta*I - lambda*C
-	du[6] = gamma*I + alpha*H + lambda*C
-end
-
-# ╔═╡ 728c3ebc-de81-45ed-bdc8-fa5ed8da6733
-
-
-# ╔═╡ 8b0e5ceb-9ae6-43f9-abdf-4ef2010c0f14
-function residuoMEDO2(par, values, tiempo)
-	beta, sigma, gamma, delta, eta, alpha, lambda, h1, h2 = par
-
-	S0 = 8000000.0
-	E0 = S0 * h1
-	I0 = 1500000.0
-	H0 = I0 * h2
-	C0 = values[1]
-	R0 = 0.0
-
-	u0 = [S0, E0, I0, H0, C0, R0]
-	tspan = (tiempo[1], tiempo[end])
-
-	EDO = ODEProblem(modeloEDO2, u0, tspan, [beta, sigma, gamma, delta, eta, alpha, lambda])
-	Osol = solve(EDO)
-
-	O_model = [Osol(t)[5] for t in tiempo]
-	res = values - O_model
-	
-	return norm(res)
-end
-
-# ╔═╡ 021932ef-1f5e-4b3c-a4eb-77ae8a3983a7
-md"""
-Nota: Tomamos $S_0$ como una estimación de la población de Bogotá e $I_0$ con base en [3].
-"""
-
-# ╔═╡ 42d88e77-5ad2-4458-bd0d-f83640a069c1
-md"""
-Declaramos la función a optimizar:
-"""
-
-# ╔═╡ 79763e5f-7df7-4b46-a608-2644d16f75d1
-rEDO2(par) = residuoMEDO2(par, values, tiempo)
-
-# ╔═╡ a30c485a-a049-4eaf-8f5b-5f08a245d84b
-md"""
-y la optimizamos:
-"""
-
-# ╔═╡ f59ada5b-0019-4aba-b2ce-063cab0abcf7
-oEDO2 = Optim.optimize(rEDO2, [0.1, 0.5, 0.01, 0.3, 0.1, 0.4, 0.01, 0.5, 0.5], NelderMead())
-
-
-# ╔═╡ 44ac49ce-1a30-4285-8714-95ab7c67cfd2
-md"""
-Nota: Probando con distintos valores iniciales para los parámetros, el residuo puede cambiar drásticamente.
-"""
-
-# ╔═╡ f3d4bbc6-d8a7-42d8-8c12-792f376dfd15
-md"""
-Obteniendo los siguientes valores óptimos:
-"""
-
-# ╔═╡ 19aa792b-55e0-47e6-a4f8-3b04f5a2adb0
-resEDO2 = oEDO2.minimizer
-
-# ╔═╡ e6333fe5-bfc9-402b-908d-13880cb5574a
-md"""
-y el siguiente valor mínimo:
-"""
-
-# ╔═╡ 7ced63da-5bbf-49bd-9242-bd68e0d06b3f
-oEDO2.minimum
-
-# ╔═╡ 975339d2-b457-4550-beba-a356163dd619
-md"""
-Podemos visualizarlo:
-"""
-
-# ╔═╡ 08342274-bc10-4dd6-9ed7-5abc95bfff89
+# ╔═╡ a915848f-164d-46d6-a4b2-0009ed064d8f
 begin
-	plot(tiempo, values, seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SEIR", size=(600, 400), color=:red, label="Ocupación")
-
-	beta1, sigma1, gamma1, delta1, eta1, alpha1, lambda1, h1, h2 = resEDO2
-	tspan1 = (1, 25)
-  	u01 = [8000000.0, 8000000.0 * h1, 1500000.0, 1500000.0 * h2, values[1], 0.0]
-  	EDO2 = ODEProblem(modeloEDO2, u01, tspan1, [beta1, sigma1, gamma1, delta1, eta1, alpha1, lambda1])
-	Osol1 = solve(EDO2)
-
-	O_model1 = [Osol1(t)[5] for t in tiempo]
-	
-	plot!(tiempo,  O_model1, color=:blue, linewidth=3, label="Modelo SEIR")
+	# Graficar
+	plot(años, poblacion, label="Población Observada", marker=:o, color=:blue)
+	plot!(años, [sol(t)[1] for t in años], label="Población Modelada", linestyle=:dash, color=:red)
+	xlabel!("Año")
+	ylabel!("Población")
+	title!("Ajuste del Modelo de Crecimiento Poblacional")
 end
-
-# ╔═╡ fd7ef41a-d0e6-4e56-a9e4-280b9b541c76
-md"""
-Podemos ver cómo se comporta este modelo con ejemplos que no incluimos en el conjunto de datos inicial:
-"""
-
-# ╔═╡ c22bc063-e9e0-48a8-bfb1-59263cb33139
-begin
-	plot(vcat(tiempo, tiempos_next), vcat(values, values_next), seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo SEIR", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo,  O_model1, color=:blue, linewidth=3, label="Modelo SEIR")
-	plot!(tiempos_next,  [Osol1(t)[5] for t in tiempos_next], color=:orange, linewidth=3, label="Modelo SEIR - Predicción")
-end
-
-
-# ╔═╡ 6035ceff-e455-4a9f-b16d-8496a5e58d2e
-html"""
-<h2 style="text-align:center">Algunos modelos adicionales</h2>
-"""
-
-# ╔═╡ 8cfe1fd6-dceb-47b2-827b-d6c0650d26b7
-html"""
-<h3 style="text-align:center"> Modelo</h3>
-"""
-
-# ╔═╡ c5fcdc43-3cff-47c7-bc65-99e126ff8761
-md"""
-$$\frac{D}{t+C}$$ 
-"""
-
-# ╔═╡ 543b9cff-22f4-4cb3-850f-49f32e068958
-function residuoM1(par, O, t)
-    D, C = par
-    oneaux = fill(1, length(t))
-    Opred = D ./ (t .+ C)
-    nres = norm(O - Opred)  # Calcula la norma de la diferencia
-    return nres
-end
-
-# ╔═╡ 9c2f6bcc-ac7a-40f0-a159-dcfac2f25992
-rM1(par) = residuoM1(par, values, tiempo)
-
-# ╔═╡ 17532994-9405-4544-bb9a-ee0caa28fdbd
-o1 = optimize(rM1, [1.0,1.0], NelderMead())
-
-# ╔═╡ 5edb1136-e688-4ccb-a832-bbb7c91d05ed
-D_opt, C_opt = Optim.minimizer(o1)
-
-# ╔═╡ 00034d84-a78d-4f47-bf3d-4e43f8d9902a
-o1.minimum
-
-# ╔═╡ 6e26ff73-47d0-4b3c-936c-cd3de3e9d24c
-begin
-# Modelo ajustado
-O_model2 = D_opt ./ (tiempo .+ C_opt)
-
-# Predicción futura
-O_pred_next = D_opt ./ (tiempos_next .+ C_opt)
-
-# Crear el gráfico
-scatter(
-    tiempo, values, 
-    ylabel="Valores Observados", 
-    xlabel="Tiempo", 
-    legend=true, 
-    title="Ajuste del Modelo con residuoM2", 
-    size=(600, 400), 
-    color=:red, 
-    label="Datos Reales"
-)
-plot!(
-    tiempo, O_model2, 
-    color=:blue, 
-    linewidth=3, 
-    label="Modelo Ajustado"
-)
-
-end
-
-# ╔═╡ d7360622-80a9-4109-9043-9a6273183a49
-html"""
-<h3 style="text-align:center"> Modelo:</h3>
-"""
-
-# ╔═╡ 6a2b4aa2-a9fb-41bd-82af-2dbfb5561e4a
-md"""
-$$Ce^{At}$$
-"""
-
-# ╔═╡ 5b45b3cb-0867-4bda-9461-202be2075af0
-function residuoM4(par, O, t)
-    C, A = par
-    Opred = C .* exp.(A .* t)  # Predicción basada en el modelo C * e^(A * t)
-    nres = norm(O - Opred)     # Norm de la diferencia (residuo)
-    return nres
-end
-
-# ╔═╡ 17d78c68-ed95-41e6-9a1c-c78064cacb55
-rM4(par) = residuoM4(par, values, tiempo)
-
-# ╔═╡ 9593408e-d1dc-49ad-a152-be4b368b961a
-o4 = optimize(rM4, [11.0,12.0], NelderMead())
-
-# ╔═╡ bccb099d-8265-4e7b-bb31-1f68f4b98416
-C2_opt, A_opt = o4.minimizer
-
-# ╔═╡ cf8037d9-89dc-40cb-b420-25a5dce41db7
-o4.minimum
-
-# ╔═╡ 7995a37e-8093-4053-bffe-7b405e45036c
-Opred = C2_opt .* exp.(A_opt .* tiempo)
-
-# ╔═╡ 0d57a169-a035-4428-97e8-a1d1a9c96e18
-Opred_next =  C2_opt .* exp.(A_opt .* tiempos_next)
-
-# ╔═╡ 5186e563-274c-46e2-9fac-00355bbc0d23
-begin
-plot(tiempo, values, seriestype=:scatter, xlabel="Tiempo", ylabel="Cantidad", label="Datos Observados", title="Ajuste del modelo C * e^(A * t)", size=(600, 400), color=:red)
-plot!(tiempo, Opred, label="Modelo Ajustado", linewidth=3, color=:blue)
-end
-
-# ╔═╡ 1bec2f77-b5ab-4123-b5e9-3625a886b2a7
-md"""
-Predicción:
-"""
-
-# ╔═╡ 3eac6807-f838-4682-a0d2-744fc9c546d0
-begin
-	plot(vcat(tiempo, tiempos_next), vcat(values, values_next), seriestype=:scatter, ylabel="Cantidad", xlabel="Tiempo", legend=true, title="Ocupación de Camas UCI Covid-19 - Modelo 4", size=(600, 400), color=:red, label="Ocupación")
-	plot!(tiempo,  Opred, color=:blue, linewidth=3, label="Modelo 4")
-	plot!(tiempos_next,  Opred_next, color=:orange, linewidth=3, label="Modelo 4 - Predicción")
-end
-
-# ╔═╡ 4e886b1f-78b2-437a-a5f6-9a06b6bfadfc
-html"""
-<h2 style="text-align:center">Conclusiones</h2>
-"""
-
-# ╔═╡ bce99dc0-da34-4e8d-8276-66031c8333f0
-md"""
-- Los modelos que mejor comportamiento tienen son aquellos con mayor cantidad de parámetros. No obstante, tal como lo probamos para el modelo SEIR, estos modelos pierden de su capacidad predictiva debido a *sobreajuste*
-
-- En general, los modelos de ecuaciones resultaron tener un mejor desempeño y ser más interpretables.  Pues aunque modelos como el polinomio cúbico y de redes neuronales también tuvieron buenos desempeños, el valor de sus parámetros no es interpretable
-
-- Los modelos basados en ecuaciones diferenciales (como el SI y el SEIR con hospitalización) demostraron un mejor balance entre precisión e interpretabilidad. A pesar de que modelos como el polinomio cúbico y las redes neuronales tuvieron un buen desempeño numérico, sus parámetros carecían de interpretación práctica.
-
-- Entre los modelos más simples, el modelo exponencial (Ce^(At)) mostró un desempeño notable con un error de ajuste de aproximadamente 53.32, comparable al del modelo SI básico (53.64). Esto sugiere que para este conjunto específico de datos de ocupación UCI por COVID-19 en Bogotá, un modelo más simple pudo capturar adecuadamente la tendencia de crecimiento, cuestionando la necesidad de modelos más complejos para este caso particular.
-
-- Los modelos predictivos, como el exponencial (Ce^(At)), mostraron limitaciones al proyectar el futuro, ya que sobreestimaron la ocupación de camas UCI, prediciendo un crecimiento acelerado, mientras que los datos reales mostraron estabilización. Esta divergencia sugiere que los modelos no captan cambios en las tendencias o puntos de inflexión, probablemente por no incorporar factores externos.
-
-- Una correcta incialización de los valores de los parámetros de optimización puede cambiar drásticamente los mínimos encontrados.
-"""
-
-# ╔═╡ a53e56a2-5904-4fc4-ab33-6641914305fd
-html"""
-<h2 style="text-align:center">Referencias</h2>
-"""
-
-# ╔═╡ 33015234-fbe1-4720-bc01-20c69dfb2f31
-md"""
-1. Ajuste de curvas. Laboratorio De Matemáticas. [https://labmatecc.github.io/Notebooks/AnalisisNumerico/AjusteDeCurvas/](https://labmatecc.github.io/Notebooks/AnalisisNumerico/AjusteDeCurvas/)
-
-
-2. Datos abiertos Bogotá. (n.d.). [https://datosabiertos.bogota.gov.co/dataset/ocupacion-de-camas-uci-covid-19-bogota-d-c](https://datosabiertos.bogota.gov.co/dataset/ocupacion-de-camas-uci-covid-19-bogota-d-c)
-
-
-3. Becerra, B. X. (2022, Enero 1). Colombia inicia 2022 con más de 12.000 contagios por covid-19 y con 44 fallecidos. Diario La República. [https://www.larepublica.co/economia/casos-de-covid-hoy-1-de-enero-en-colombia-3282789](https://www.larepublica.co/economia/casos-de-covid-hoy-1-de-enero-en-colombia-3282789)
-
-
-4. RPUBS - Modelo SIR - ODE - I. (n.d.). [https://rpubs.com/dsfernandez/675857](https://rpubs.com/dsfernandez/675857)
-
-
-5. Delli Compagni R, Cheng Z, Russo S, Van Boeckel TP. A hybrid Neural Network-SEIR model for forecasting intensive care occupancy in Switzerland during COVID-19 epidemics. PLoS One. 2022 Mar 3;17(3):e0263789. doi: 10.1371/journal.pone.0263789. PMID: 35239662; PMCID: PMC8893679.
-"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-DifferentialEquations = "~7.13.0"
+DifferentialEquations = "~7.15.0"
 Optim = "~1.10.0"
 Plots = "~1.40.9"
-PlutoUI = "~0.7.60"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1033,7 +135,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "041fbc9e131c071a6dc66c0cc6734383dda1f716"
+project_hash = "87eaacc8634d49654d173059af323086832a3761"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "30bb95a372787af850addf28ac937f1be7b79173"
@@ -1045,12 +147,6 @@ weakdeps = ["ChainRulesCore", "ConstructionBase", "EnzymeCore"]
     ADTypesChainRulesCoreExt = "ChainRulesCore"
     ADTypesConstructionBaseExt = "ConstructionBase"
     ADTypesEnzymeCoreExt = "EnzymeCore"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.3.2"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -1455,11 +551,10 @@ version = "6.160.0"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [[deps.DiffEqCallbacks]]
-deps = ["DataStructures", "DiffEqBase", "ForwardDiff", "Functors", "LinearAlgebra", "Markdown", "NonlinearSolve", "Parameters", "RecipesBase", "RecursiveArrayTools", "SciMLBase", "StaticArraysCore"]
-git-tree-sha1 = "19dbd44d18bbfdfcf5e56c99cea9b0ed23df350a"
+deps = ["ConcreteStructs", "DataStructures", "DiffEqBase", "DifferentiationInterface", "Functors", "LinearAlgebra", "Markdown", "RecipesBase", "RecursiveArrayTools", "SciMLBase", "StaticArraysCore"]
+git-tree-sha1 = "5458b607a6639b0e9c587d5afffc5d41a8f9cfb7"
 uuid = "459566f4-90b8-5000-8ac3-15dfb0a30def"
-version = "3.9.1"
-weakdeps = ["OrdinaryDiffEq", "OrdinaryDiffEqCore", "Sundials"]
+version = "4.2.0"
 
 [[deps.DiffEqNoiseProcess]]
 deps = ["DiffEqBase", "Distributions", "GPUArraysCore", "LinearAlgebra", "Markdown", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "ResettableStacks", "SciMLBase", "StaticArraysCore", "Statistics"]
@@ -1487,9 +582,9 @@ version = "1.15.1"
 
 [[deps.DifferentialEquations]]
 deps = ["BoundaryValueDiffEq", "DelayDiffEq", "DiffEqBase", "DiffEqCallbacks", "DiffEqNoiseProcess", "JumpProcesses", "LinearAlgebra", "LinearSolve", "NonlinearSolve", "OrdinaryDiffEq", "Random", "RecursiveArrayTools", "Reexport", "SciMLBase", "SteadyStateDiffEq", "StochasticDiffEq", "Sundials"]
-git-tree-sha1 = "81042254a307980b8ab5b67033aca26c2e157ebb"
+git-tree-sha1 = "d55af9d6b51c54f81ae30d1a463206d32cc4c24a"
 uuid = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-version = "7.13.0"
+version = "7.15.0"
 
 [[deps.DifferentiationInterface]]
 deps = ["ADTypes", "LinearAlgebra"]
@@ -1616,9 +711,9 @@ version = "0.0.20230411+0"
 
 [[deps.ExceptionUnwrapping]]
 deps = ["Test"]
-git-tree-sha1 = "dcb08a0d93ec0b1cdc4af184b26b591e9695423a"
+git-tree-sha1 = "d36f682e590a83d63d1c7dbd287573764682d12a"
 uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
-version = "0.1.10"
+version = "0.1.11"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1790,10 +885,10 @@ uuid = "77dc65aa-8811-40c2-897b-53d922fa7daf"
 version = "0.1.3"
 
 [[deps.Functors]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "64d8e93700c7a3f28f717d265382d52fac9fa1c1"
+deps = ["Compat", "ConstructionBase", "LinearAlgebra", "Random"]
+git-tree-sha1 = "15e5397dd1cea034c7c772d9748cdee461fb5496"
 uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
-version = "0.4.12"
+version = "0.5.1"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -1888,24 +983,6 @@ deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "b1c2585431c382e3fe5805874bda6aea90a95de9"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.25"
-
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.5"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.5"
 
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
@@ -2257,11 +1334,6 @@ weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
     [deps.LoopVectorization.extensions]
     ForwardDiffExt = ["ChainRulesCore", "ForwardDiff"]
     SpecialFunctionsExt = "SpecialFunctions"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -2771,12 +1843,6 @@ version = "1.40.9"
     IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.60"
 
 [[deps.PoissonRandom]]
 deps = ["Random"]
@@ -3442,11 +2508,6 @@ git-tree-sha1 = "be986ad9dac14888ba338c2554dcfec6939e1393"
 uuid = "d5829a12-d9aa-46ab-831f-fb7c9ab06edf"
 version = "0.2.1"
 
-[[deps.Tricks]]
-git-tree-sha1 = "7822b97e99a1672bfb1b49b668a6d46d58d8cbcb"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.9"
-
 [[deps.TruncatedStacktraces]]
 deps = ["InteractiveUtils", "MacroTools", "Preferences"]
 git-tree-sha1 = "ea3e54c2bdde39062abf5a9758a23735558705e1"
@@ -3822,169 +2883,20 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╟─31846f28-a3d2-11ef-1308-dd1e47ea992b
-# ╟─b022e54e-d9a3-450e-a601-047a57f53b10
-# ╟─721ae26b-573f-4b01-8f01-60d65ceeafcf
-# ╟─a90f228e-2e72-44cb-8b7f-dbea8e53f7fb
-# ╠═252baa9e-2a73-434f-a33c-836464dd9b01
-# ╟─4bd6bcb2-6127-45b9-8032-97a876288fe4
-# ╟─fb28df9e-1ea5-4481-a7bd-28300499dfab
-# ╟─5fceba2f-06eb-4173-8a64-92b4b9ff7b7a
-# ╟─da658b1f-f72d-48df-b2d2-0de17250219e
-# ╟─72f95577-4ec2-4464-a5f8-da59e64523e5
-# ╟─96ff62f9-ebdf-44a0-b9bd-1703a1f7c4d2
-# ╟─31fa6de2-b739-4c0e-a46e-cf3736d9d429
-# ╟─5e756abf-619f-44ff-8cdf-273344ce4686
-# ╟─8f447492-cbf1-4abc-a542-389add65da81
-# ╟─b4b1b6fc-6ec4-481e-b292-81e9d208a20f
-# ╟─d8f88fee-bb8e-4dd1-8deb-c5b070b270b2
-# ╟─dbee1abf-7858-4ace-a339-2fab9064968b
-# ╟─a97e1d99-69fa-44fe-9554-d41f4a2d2dfa
-# ╠═adb492a3-2d99-4082-b1b9-a421389204df
-# ╟─078a6bf7-8fbb-4cff-93d5-21c96655565a
-# ╟─5599267b-a4ed-4995-aa17-7714bbed8e78
-# ╟─211e9d1b-d5ed-4b28-b8f5-9347119cf863
-# ╟─8d67cf0b-9064-4eef-95d1-2871c07e8ce8
-# ╟─72febc8a-dcb1-4a4d-a73d-6525448db360
-# ╠═9de8ddb3-2185-4846-b2b4-9199bd7a8fb9
-# ╟─ff43e697-b95e-421f-bfb8-0830ed371e18
-# ╠═b07450ac-a153-4868-a65d-1aac9793abec
-# ╟─2dafc910-d876-4cad-9c27-9cd1a4c65184
-# ╠═a0b1346e-e1fc-4749-8e2d-784ac4d49479
-# ╟─3bfa623e-16a9-4523-a196-becdec4a35a8
-# ╠═8a772488-b4db-4378-b06b-7547bf77326f
-# ╟─89157a1f-f3a3-47c6-8d23-2693ae0c2650
-# ╟─26c0c9dc-0ef9-404a-ade0-19bc1fd0fc54
-# ╟─6072d643-bb69-41cc-a721-f7a3371785c9
-# ╟─31c66621-eb04-4811-bed4-c6d4db9402ae
-# ╠═98234bc7-e7d5-4d6b-ba9e-7ae9392872be
-# ╟─df4738fe-f15a-4463-99db-d56b800d2b0e
-# ╠═60bcc6a8-fe4b-4416-abe9-f4f2c14c56f3
-# ╟─bb7708ba-a009-4dbd-8857-5e913a851bdb
-# ╠═a99d7883-98bd-4bbf-a454-8f4b35f97d5a
-# ╟─caf52fdd-b192-4082-9c53-90762141bfe9
-# ╠═9f0b3dd5-142c-4a38-97ac-130849104dd1
-# ╟─19d2d591-a4ac-458e-a08a-b5bc1cbf5ce0
-# ╠═7d331029-26d2-4487-ba57-86512c6f3406
-# ╟─c563e89b-84c5-4380-98ea-c47f23a8ab45
-# ╟─7a0bad59-5ff8-4c42-82b3-2f07251b66dc
-# ╟─5a51c243-be09-4ca6-b4de-b2afa36e9dc0
-# ╟─09fc44a4-4d00-460e-9585-af260c878368
-# ╟─37bcf16c-008b-4fb7-a602-3adcb46a7ca2
-# ╟─aea58b06-15fe-468a-832a-d11ffdf85806
-# ╠═e5cf1bbc-f2f9-4674-b389-84851e7eb42f
-# ╟─dc8b4af0-fdbd-4c6b-ad25-1a6b05bdcf66
-# ╠═12bbd609-8562-4611-9ddd-9e8479c76430
-# ╟─2fda614e-1c35-48a1-a1bf-8f08351baaba
-# ╠═78eff8e2-245c-4b24-8806-077e3d0ad4c4
-# ╟─132432cc-3d64-49a3-9279-6190f23a5073
-# ╠═4a5f632f-b591-4379-b6c7-fdbdf6e74989
-# ╟─b39af679-a4c8-4793-a0f3-356cc88bd39e
-# ╠═20eac32b-877c-4035-acf9-78f74e857e43
-# ╟─9eb7b9cc-8bca-4e7c-88cb-1ef978c46432
-# ╟─502288ed-737a-48c3-b5e7-4511e4f525e5
-# ╟─159e6255-d3a7-470c-9022-ff5c1ebf02a2
-# ╟─83f91a02-6754-4f0c-9c22-1cc2df22e567
-# ╟─58eee144-0aab-456b-b413-aee18610e99c
-# ╟─ba15357d-bb76-4133-80a0-52b0f929ee3c
-# ╠═7db7410e-c05a-44ea-8a7d-ff366962d016
-# ╟─dd9d5a07-5d20-4abc-a415-7894c6da30c7
-# ╟─c05066f5-2856-4a8e-badd-a8319c87a335
-# ╟─012d0dfb-3102-4483-9498-19e34217c3d8
-# ╟─d8e66a0d-984f-4e86-a321-6f9e84f2f9bc
-# ╠═0762f678-df69-4407-876d-8bcb7584332f
-# ╟─186dcc6c-9280-4ca5-9253-431d059791da
-# ╠═05cc35d5-617c-4db0-a978-e178c6ec6e5f
-# ╟─988b60df-1952-4547-9c31-49bfad1c2f51
-# ╠═ccc21583-04fd-4696-9dfb-f7794533a048
-# ╟─12692e78-9bbf-430e-9b56-a2ca30f3052a
-# ╠═d4ca8a90-6592-4912-92e8-60323a4eb3e0
-# ╟─7c41652e-d720-42f8-90af-11966738f863
-# ╟─82dc375b-ffc0-46aa-ab29-73b53777e3d1
-# ╟─a0c8e8a5-41cb-44d9-9ade-3c552ab78a8b
-# ╟─659767a3-115c-42d6-b7da-e4191f82221e
-# ╠═e389cd73-1fc2-45d7-9b5e-feef57a3cbe7
-# ╟─67c80b45-6065-4b6c-b3ec-ddb10308ede7
-# ╟─0bd771d4-593b-4dcd-bb19-ea0590705399
-# ╟─c86dff9a-d027-4a8f-a4a3-4b72eac14bb1
-# ╟─3d16e12c-f443-442a-8451-97e98699e22c
-# ╟─910a9eaf-c4a0-4b60-a2f9-8cf9934e4255
-# ╟─e5140606-6a93-4e6b-9bc9-44968b67f12c
-# ╠═21c65555-36a5-4d5e-90a3-418335140369
-# ╟─9b10d7a8-5e60-4ac8-a4c8-25534ec4e2ba
-# ╠═b8ef6f0f-4f02-481a-8f00-e3f9195e2666
-# ╠═387ab5e9-dd12-42cb-9610-f9d8e5b12b28
-# ╟─518efbb6-6ea1-48f2-8637-be365ad0412c
-# ╠═73e9ba9b-b2c6-43bd-ad5f-e5a01c2a6a5d
-# ╟─05be096a-4419-436e-b35e-d2f29ffd13d0
-# ╟─7d645153-c982-4431-94ef-df1779026b71
-# ╟─7a74f797-8224-47de-9990-d7b8bbccbe79
-# ╟─ccb1725f-f082-466d-a5cc-c71c472ff15e
-# ╟─d3fdb732-2f42-420e-bc1c-06c5caf544ae
-# ╟─5686a040-10c3-49e8-992e-69114f48fe27
-# ╠═d35cf3ee-4f34-4102-a185-a01136e5db06
-# ╟─75631b22-6593-4e2b-8d4d-2d57c04fed30
-# ╠═8cf8aba4-a038-4e8a-80b4-27143728efdb
-# ╟─bcb2c7b8-2b94-4828-b1f8-cd7ca058c055
-# ╟─bf626898-cae4-4bdd-b200-ebbe227dc940
-# ╠═1c70526b-5003-4a8d-b5c1-4054f475ab1a
-# ╟─1830ef6a-5c51-468d-ae4b-04270c486882
-# ╠═388921e7-0e17-42f6-a69b-0b2f3a40c765
-# ╟─3b13e361-f850-4842-b7ad-e707cc98c0e8
-# ╠═8e0dc74a-3660-4856-98fe-e6634cbb2392
-# ╟─617c3eb5-ef67-4bfa-ace9-8e0d09c14519
-# ╠═e8101d81-2e1d-476b-a470-8d0fa643e2fc
-# ╟─b0eca24c-2762-4c03-a50e-3d2b7d98cbe4
-# ╟─9b785dd1-bbdf-42ff-b925-dd1e259da04e
-# ╟─da5bddbc-6fc2-4187-9c18-d5dc1a259c80
-# ╠═0e9d6863-4faf-442d-87c2-e7f6b9e3fa04
-# ╠═c25c21ce-cbdb-4e85-8e7c-bd6903bd4739
-# ╟─bb1047cd-7f44-4128-8dd6-bdcf05e6611d
-# ╟─6ae7332b-db33-4c19-9815-c2fbb1bb4c5b
-# ╟─298aaa47-1887-4724-8c57-c425770f8c90
-# ╟─997e5517-a57c-47af-9587-fe72327431d3
-# ╟─63ae4780-e30e-485a-9228-eb3387f49e41
-# ╠═f63f2fa6-9106-46cd-b4bd-f62fe82f3d25
-# ╟─728c3ebc-de81-45ed-bdc8-fa5ed8da6733
-# ╠═8b0e5ceb-9ae6-43f9-abdf-4ef2010c0f14
-# ╟─021932ef-1f5e-4b3c-a4eb-77ae8a3983a7
-# ╟─42d88e77-5ad2-4458-bd0d-f83640a069c1
-# ╠═79763e5f-7df7-4b46-a608-2644d16f75d1
-# ╟─a30c485a-a049-4eaf-8f5b-5f08a245d84b
-# ╠═f59ada5b-0019-4aba-b2ce-063cab0abcf7
-# ╟─44ac49ce-1a30-4285-8714-95ab7c67cfd2
-# ╟─f3d4bbc6-d8a7-42d8-8c12-792f376dfd15
-# ╠═19aa792b-55e0-47e6-a4f8-3b04f5a2adb0
-# ╟─e6333fe5-bfc9-402b-908d-13880cb5574a
-# ╠═7ced63da-5bbf-49bd-9242-bd68e0d06b3f
-# ╟─975339d2-b457-4550-beba-a356163dd619
-# ╟─08342274-bc10-4dd6-9ed7-5abc95bfff89
-# ╟─fd7ef41a-d0e6-4e56-a9e4-280b9b541c76
-# ╟─c22bc063-e9e0-48a8-bfb1-59263cb33139
-# ╟─6035ceff-e455-4a9f-b16d-8496a5e58d2e
-# ╟─8cfe1fd6-dceb-47b2-827b-d6c0650d26b7
-# ╟─c5fcdc43-3cff-47c7-bc65-99e126ff8761
-# ╠═543b9cff-22f4-4cb3-850f-49f32e068958
-# ╠═9c2f6bcc-ac7a-40f0-a159-dcfac2f25992
-# ╠═17532994-9405-4544-bb9a-ee0caa28fdbd
-# ╠═5edb1136-e688-4ccb-a832-bbb7c91d05ed
-# ╠═00034d84-a78d-4f47-bf3d-4e43f8d9902a
-# ╟─6e26ff73-47d0-4b3c-936c-cd3de3e9d24c
-# ╟─d7360622-80a9-4109-9043-9a6273183a49
-# ╟─6a2b4aa2-a9fb-41bd-82af-2dbfb5561e4a
-# ╠═5b45b3cb-0867-4bda-9461-202be2075af0
-# ╠═17d78c68-ed95-41e6-9a1c-c78064cacb55
-# ╠═9593408e-d1dc-49ad-a152-be4b368b961a
-# ╠═bccb099d-8265-4e7b-bb31-1f68f4b98416
-# ╠═cf8037d9-89dc-40cb-b420-25a5dce41db7
-# ╠═7995a37e-8093-4053-bffe-7b405e45036c
-# ╠═0d57a169-a035-4428-97e8-a1d1a9c96e18
-# ╟─5186e563-274c-46e2-9fac-00355bbc0d23
-# ╟─1bec2f77-b5ab-4123-b5e9-3625a886b2a7
-# ╟─3eac6807-f838-4682-a0d2-744fc9c546d0
-# ╟─4e886b1f-78b2-437a-a5f6-9a06b6bfadfc
-# ╟─bce99dc0-da34-4e8d-8276-66031c8333f0
-# ╟─a53e56a2-5904-4fc4-ab33-6641914305fd
-# ╟─33015234-fbe1-4720-bc01-20c69dfb2f31
+# ╟─e9293b85-631d-4676-ae47-1ceb43775f2b
+# ╠═a0afb5ac-e1b6-11ef-2bec-15420f945e9b
+# ╠═6efe264e-027a-49a4-b804-9c0d85f945b3
+# ╠═69a33ad6-5f82-4fd0-b3c4-401d68f59dbd
+# ╠═653a764a-5f99-43b7-ac35-33a87da81b57
+# ╠═f5064490-5c90-4166-a8d5-c816941c26aa
+# ╠═1149f571-4f0b-4f87-8b51-9018c1668387
+# ╠═8bdf1282-ae7a-48c2-b731-aa6ddac3b662
+# ╠═3352a50c-a92e-49dd-926c-213d5d42901e
+# ╠═dcf6a7f7-b5a0-4f6f-acdc-dea2d3a1ae5d
+# ╠═11c0c2e7-0dc6-4742-bda5-709d4f6ad597
+# ╠═50ec5f65-f938-4a58-970f-3378ae0535c1
+# ╠═cce0ffdd-3021-455e-9e3e-e581c4d00f1d
+# ╠═3e551ff9-85c0-4561-bd7d-22bb5b2ab02f
+# ╠═a915848f-164d-46d6-a4b2-0009ed064d8f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
