@@ -5,32 +5,62 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 8108fd90-e1ba-11ef-2220-c34f038a1f2d
-using DifferentialEquations, Optim, Plots, LinearAlgebra
+using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames
 
-# ╔═╡ 28937b82-d193-4bde-8933-01998644d45a
-using Interpolations
+# ╔═╡ 4014a39a-863e-4d4c-9255-80ade3a3fe21
+html"""
+<h1 style="text-align: center">Modelos</h1>
+"""
 
-# ╔═╡ b2e730f5-6471-4558-8d19-c95b704b98e6
+# ╔═╡ 9d2356df-f055-4c9e-ae10-b9818da13eb9
+html"""
+<h2>Carga de datos</h2>
+"""
+
+# ╔═╡ 0ba48e4e-fddb-4c12-90ad-90528a2b466e
+df_poblacion = CSV.read("./datos/datos_poblacion.csv", DataFrame)
+
+# ╔═╡ 5214ce4c-48a6-4cd5-b65d-bee6525a8447
+df_territorio = CSV.read("./datos/datos_territorio.csv", DataFrame)
+
+# ╔═╡ 764b300d-f44b-4c92-9076-bcf9c2495522
 begin
-	# Interpolación de la tasa de migración
-	años = 1980:2024
-	migracion = [0.0121, 0.0115, 0.0113, 0.0109, 0.0106, 0.0101, 0.0099, 0.0093, 0.0089, 0.0086, 0.0083, 0.0079, 0.0078, 0.0077, 0.0075, 0.0073, 0.007, 0.0065, 0.0063, 0.0059, 0.0055, 0.0051, 0.0049, 0.0042, 0.0035, 0.0025, 0.001, -0.0005, -0.0015, -0.0027, -0.0041, -0.0048, -0.0046, -0.0046, -0.004, -0.0034, -0.0029, -0.0009, 0.0032, 0.0192, 0.0186, 0.0095, 0.0049, 0.0025, 0.0006]
+	t_years = df_poblacion.año
+	t0 = minimum(t_years)
+	t_data = Int.(t_years .- t0 .+ 1)
 end
 
-# ╔═╡ 085d7b63-b6f1-4b14-b9e2-386610f86ec8
-interpolacion_migracion = LinearInterpolation(años, migracion)
+# ╔═╡ 1f0f485a-6b3d-4fff-a16d-f932ba79feef
+html"""
+<h2>Modelo población:</h2>
+"""
+
+# ╔═╡ 7133f62d-0d8c-45b8-b1c7-40402cc6b999
+md"""
+Consideraremos el modelo logístico con población:
+
+$$\frac{dP}{dt}= rP(t) \left(1 - \frac{P(t)}{K}\right) + I(t),$$
+
+donde $r$ es la tasa de crecimiento y $K$ la capacidad de carga.
+"""
+
+# ╔═╡ 1f55c81b-d6ff-4fe8-841f-22db25c9264d
+años = t_data
+
+# ╔═╡ b2e730f5-6471-4558-8d19-c95b704b98e6
+migracion = df_poblacion[!, "migración"]
 
 # ╔═╡ 1641060b-0f1d-40b4-88d4-86ab35030f45
 # Modelo logístico con migración
 function modeloLogistico(du, u, par, t)
   P = u[1]
   r, K = par
-  I_t = interpolacion_migracion(t)  # Interpolamos los valores de I(t)
+  I_t = migracion[Int(round(t))]
   du[1] = r * P * (1 - P / K) + I_t
 end
 
 # ╔═╡ 3bc84004-8182-42d2-a064-cd817720128d
-poblacion = [3753117.0, 3876219.0, 4000258.0, 4125066.0, 4250881.0, 4376707.0, 4503632.0, 4629733.0, 4755662.0, 4882163.0, 5009197.0, 5135929.0, 5263300.0, 5390988.0, 5518215.0, 5645134.0, 5771303.0, 5894809.0, 6017421.0, 6137769.0, 6255614.0, 6370718.0, 6484116.0, 6593050.0, 6695901.0, 6790992.0, 6873842.0, 6945389.0, 7009432.0, 7062402.0, 7102952.0, 7136774.0, 7169750.0, 7201046.0, 7233450.0, 7268171.0, 7304512.0, 7352743.0, 7428317.0, 7615712.0, 7760096.0, 7839641.0, 7889727.0, 7923763.0, 7946067.0]
+poblacion = df_poblacion[!, "población"]
 
 # ╔═╡ 270f1385-5c9e-4b46-b9aa-f87144100f68
 # Función de error para optimización
@@ -49,47 +79,384 @@ end
 # ╔═╡ 7ec40f72-578a-4fca-b67d-571588ad786b
 begin
 	# Ajuste de parámetros
-	par_inicial = [0.02, 10^7]  # Valores iniciales estimados
-	opt = Optim.optimize(par -> residuoLogistico(par, poblacion, años), par_inicial, NelderMead())
-	par_est = opt.minimizer
+	par_inicial_P = [0.02, 10^7]  # Valores iniciales estimados
+	opt_P = Optim.optimize(par -> residuoLogistico(par, poblacion, años), par_inicial_P, NelderMead())
+	par_est_P = opt_P.minimizer
 
+	r = par_est_P[1]
+	K = par_est_P[2]
 	println("Parámetros estimados:")
-	println("r = ", par_est[1])
-	println("K = ", par_est[2])
+	println("r = ", r)
+	println("K = ", K)
 end
 
 # ╔═╡ fe8f5efe-245a-40e5-9a41-af921449af47
 begin 
 	# Resolver la ecuación diferencial con los parámetros óptimos
 	P0 = poblacion[1]
-	u0 = [P0]
-	tspan = (años[1], años[end])
-	prob = ODEProblem(modeloLogistico, u0, tspan, par_est)
-	sol = solve(prob, saveat=años)
+	u0_P = [P0]
+	tspan_P = (años[1], años[end])
+	prob_P = ODEProblem(modeloLogistico, u0_P, tspan_P, par_est_P)
+	sol_P = solve(prob_P, saveat=años, reltol=1e-8)
+end
+
+# ╔═╡ 126ad5ed-a32d-4ac0-b3d4-78fb11faef9f
+# Solución analítica del modelo logístico (falta meter dI/dt)
+function P_logistico(t)
+  return (K * P0 * exp(r * t)) / (K + P0 * (exp(r * t) - 1))
+end
+
+# ╔═╡ f38eda3e-2c1b-4479-8a6b-c6bba01d3389
+function P(t)
+	return sol_P(t)[1]
+end
+
+# ╔═╡ 24ab24ad-7819-404d-ac67-8388c67c6153
+function dP_(t)
+	return r * P(t) * (1 - P(t) / K) + migracion[Int64(round(t))]
 end
 
 # ╔═╡ 80ff100b-c076-4de2-a7d5-9e2707eb1a6a
 begin
 	# Graficar
-	plot(años, poblacion, label="Población Observada", marker=:o, color=:blue)
-	plot!(años, [sol(t)[1] for t in años], label="Población Modelada", linestyle=:dash, color=:red)
+	plot(años .+ t0, poblacion, label="Población Observada", marker=:o, color=:blue)
+	plot!(años .+ t0, [sol_P(t)[1] for t in años], label="Población Modelada", linestyle=:dash, color=:red)
+	plot!(años .+ t0, [P_logistico(t) for t in años], label="Solución analítica", linestyle=:dash, color=:green)
 	xlabel!("Año")
 	ylabel!("Población")
 	title!("Ajuste del Modelo Logístico con Migración")
 end
 
+# ╔═╡ 89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
+html"""
+<h2>Modelo territorio:</h2>
+"""
+
+# ╔═╡ f70bcb17-b3d2-4074-ae17-9151ba453f61
+md"""
+Consideramos el modelo en el que la expansión de la huella urbana es proporcional al crecimiento poblacional y a la demanda de viviendas, pero limitada por la estructura ecológica (área protegida):
+
+$$\frac{dU}{dt} = \alpha P(t) + \beta V(t) - \gamma E(t),$$
+
+la estructura ecológica disminuye debido a la expansión de la huella urbana:
+
+$$\frac{dE}{dt}=-\delta U(t),$$
+
+la demanda de viviendas, asumimos depende del promedio de personas por hogar $\kappa$:
+
+$$\frac{dV}{dt} = \frac{1}{\kappa}\frac{dP}{dt};$$
+
+y la superficie del suelo urbano disponible disminuirá proporcionalmente con la expasión de la huella urbana:
+
+$$\frac{dD}{dt} = -\nu \frac{dU}{dt}.$$
+"""
+
+# ╔═╡ f764711d-47d3-492e-9aed-76bd29736493
+
+begin
+	# Extraer datos observados para las variables territoriales
+	U_obs = df_territorio[!, "Huella Urbana"]
+	E_obs = df_territorio[!, "Área protegida"]
+	D_obs = df_territorio[!, "Area disponible"]
+	V_obs = df_territorio[!, "Viviendas (ocupadas)"]
+end
+
+# ╔═╡ 72c968a1-1fb3-4025-a7bf-fa989204f08c
+# --------------------------------------------------
+# Modelo de territorio (enfoque desacoplado)
+# Variables del sistema: U(t), E(t), V(t), D(t)
+# Parámetros a estimar: par = [α, β, γ, δ, κ, ν]
+# Ecuaciones:
+#   dU/dt = α * P(t) + β * V(t) - γ * E(t)
+#   dE/dt = -δ * U(t)
+#   dV/dt = (1/κ) * dP/dt
+#   dD/dt = -ν * dU/dt
+# --------------------------------------------------
+function modeloTerritorio(u, par, t)
+  α, β, γ, δ, κ, ν = par
+  U, E, V, D = u
+  P = sol_P(t)[1]
+  dP = dP_(t)
+  dU = α * P + β * V - γ * E
+  dE = -δ * U
+  dV = (1 / κ) * dP
+  dD = -ν * dU
+  return [dU, dE, dV, dD]
+end
+
+# ╔═╡ 46c31ba6-bc97-4986-8744-b0846010cb93
+# --------------------------------------------------
+# Función de error para la optimización
+# Se integra el sistema y se compara con los datos observados
+# --------------------------------------------------
+function residuoTerritorio(par)
+  # Condiciones iniciales tomadas de los datos (en t = t_data[1])
+  u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
+  # Asegurarse de que tspan sea una tupla de dos elementos:
+  tspan = (t_data[1], t_data[end])
+  # Crear el problema ODE, pasando 'par' como parámetros:
+  prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
+                    u0, tspan, par)
+  # Resolver el problema, guardando la solución en los tiempos definidos en t_data:
+  sol = solve(prob, Tsit5(), saveat=t_data)
+  # Extraer la solución simulada para cada variable:
+  U_sim = [sol[i][1] for i in 1:length(sol)]
+  E_sim = [sol[i][2] for i in 1:length(sol)]
+  V_sim = [sol[i][3] for i in 1:length(sol)]
+  D_sim = [sol[i][4] for i in 1:length(sol)]
+  # Suma de errores cuadrados
+  error = sum((U_sim .- U_obs).^2) +
+          sum((E_sim .- E_obs).^2) +
+          sum((V_sim .- V_obs).^2) +
+          sum((D_sim .- D_obs).^2)
+  return error
+end
+
+# ╔═╡ 88ea74a2-5890-46f4-bcb1-9c272222c720
+# --------------------------------------------------
+# Optimización de parámetros territoriales
+# Se define una estimación inicial para [α, β, γ, δ, κ, ν]
+# --------------------------------------------------
+# par_inicial = [1e-3, 1e-5, 1e-5, -1e-5, 4.0, 1.0]
+par_inicial = [1e-3, 1e-3, 1e-3, -1e-5, 2.0, 1.0]
+
+# ╔═╡ 692ea88a-d3e4-4657-ba65-a28397929038
+begin
+	opt_result = Optim.optimize(residuoTerritorio, par_inicial, NelderMead())
+	par_est = Optim.minimizer(opt_result)
+
+	println(opt_result)
+	println("Parámetros territoriales estimados:")
+	println("α = ", par_est[1])
+	println("β = ", par_est[2])
+	println("γ = ", par_est[3])
+	println("δ = ", par_est[4])
+	println("κ = ", par_est[5])
+	println("ν = ", par_est[6])
+end
+
+# ╔═╡ 2022ed7c-0efd-4db3-910a-79a09b41651f
+begin
+	# --------------------------------------------------
+	# Resolución del sistema territorial con parámetros estimados
+	# --------------------------------------------------
+	u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
+	tspan = (t_data[1], t_data[end])  # Aseguramos que sea una tupla de 2 elementos
+	prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
+	                   u0, tspan, par_est)
+	sol = solve(prob, Tsit5(), saveat=t_data)
+end
+
+# ╔═╡ 0dfb8363-d1c0-4e37-89d4-ba7cb33380a5
+begin
+	# --------------------------------------------------
+	# Graficar resultados (observados vs simulados)
+	# --------------------------------------------------
+	plt = plot(t_data, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+	plot!(plt, t_data, E_obs, lw=2, linestyle=:dash, label="Área protegida (obs)")
+	plot!(plt, t_data, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
+	plot!(plt, t_data, D_obs, lw=2, linestyle=:dash, label="Área disponible (obs)")
+	
+	plot!(plt, t_data, [sol[i][1] for i in 1:length(sol)], lw=2, label="Huella Urbana (sim)")
+	plot!(plt, t_data, [sol[i][2] for i in 1:length(sol)], lw=2, label="Área protegida (sim)")
+	plot!(plt, t_data, [sol[i][3] for i in 1:length(sol)], lw=2, label="Viviendas (sim)")
+	plot!(plt, t_data, [sol[i][4] for i in 1:length(sol)], lw=2, label="Área disponible (sim)")
+	xlabel!("Tiempo (años)")
+	ylabel!("Valor de la variable")
+	title!("Comparación: Datos observados vs. Simulación del modelo territorial")
+end
+
+# ╔═╡ 432e31c6-6613-4722-a474-bd8e956cfabc
+begin
+	# Definir un layout de 2x2
+	l = @layout [a b; c d]
+	
+	# Crear la figura con 4 subplots
+	p = plot(layout = l, size=(800,600))
+	
+	# Huella Urbana
+	plot!(p[1], t_data .+ t0, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+	plot!(p[1], t_data .+ t0, [sol[i][1] for i in 1:length(sol)], lw=2, label="Huella Urbana (sim)")
+	xlabel!(p[1], "Tiempo (años)")
+	ylabel!(p[1], "Hectáreas")
+	title!(p[1], "Huella Urbana")
+	
+	# Área Protegida
+	plot!(p[2], t_data .+ t0, E_obs, lw=2, linestyle=:dash, label="Área Protegida (obs)")
+	plot!(p[2], t_data .+ t0, [sol[i][2] for i in 1:length(sol)], lw=2, label="Área Protegida (sim)")
+	xlabel!(p[2], "Tiempo (años)")
+	ylabel!(p[2], "Hectáreas")
+	title!(p[2], "Área Protegida")
+	
+	# Viviendas (ocupadas)
+	plot!(p[3], t_data .+ t0, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
+	plot!(p[3], t_data .+ t0, [sol[i][3] for i in 1:length(sol)], lw=2, label="Viviendas (sim)")
+	xlabel!(p[3], "Tiempo (años)")
+	ylabel!(p[3], "Número de viviendas")
+	title!(p[3], "Viviendas Ocupadas")
+	
+	# Área Disponible
+	plot!(p[4], t_data .+ t0, D_obs, lw=2, linestyle=:dash, label="Área Disponible (obs)")
+	plot!(p[4], t_data .+ t0, [sol[i][4] for i in 1:length(sol)], lw=2, label="Área Disponible (sim)")
+	xlabel!(p[4], "Tiempo (años)")
+	ylabel!(p[4], "Hectáreas")
+	title!(p[4], "Área Disponible")
+end
+
+# ╔═╡ 32298ca6-f2e7-461a-971e-e017be682679
+begin
+# Datos observados
+P_obs = df_poblacion[!, "población"]
+
+# Condiciones iniciales para el modelo acoplado:
+# u0 = [P(0), U(0), E(0), V(0), D(0)]
+u0_D = [P_obs[1], U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
+
+# --------------------------------------------------
+# Modelo Acoplado: población y territorio
+# Estado: u = [P, U, E, V, D]
+# Parámetros: par = [r, K, α, β, γ, δ, κ, ν]
+#   - Población: dP/dt = r * P * (1 - P/K)
+#   - Huella Urbana: dU/dt = α * P + β * V - γ * E
+#   - Área Protegida: dE/dt = -δ * U
+#   - Viviendas: dV/dt = (1/κ) * dP/dt
+#   - Área Disponible: dD/dt = -ν * dU/dt
+# --------------------------------------------------
+function modeloCompleto(u, par, t)
+  r, K, α, β, γ, δ, κ, ν = par
+  P = u[1]
+  U = u[2]
+  E = u[3]
+  V = u[4]
+  D = u[5]
+  
+  dP = r * P * (1 - P / K)
+  dU = α * P + β * V - γ * E
+  dE = -δ * U
+  dV = (1 / κ) * dP
+  dD = -ν * dU
+  
+  return [dP, dU, dE, dV, dD]
+end
+
+# --------------------------------------------------
+# Función de error para la optimización del modelo acoplado
+# Se integran las ecuaciones y se calcula la suma de errores cuadrados
+# entre las soluciones simuladas y los datos observados.
+# --------------------------------------------------
+function residuoCompleto(par_D)
+  tspan = (t_data[1], t_data[end])
+  prob = ODEProblem((u, par, t) -> modeloCompleto(u, par, t),
+                    u0_D, tspan, par_D)
+  sol = solve(prob, Tsit5(), saveat=t_data)
+  
+  # Extraer las soluciones simuladas
+  P_sim = [sol[i][1] for i in 1:length(sol)]
+  U_sim = [sol[i][2] for i in 1:length(sol)]
+  E_sim = [sol[i][3] for i in 1:length(sol)]
+  V_sim = [sol[i][4] for i in 1:length(sol)]
+  D_sim = [sol[i][5] for i in 1:length(sol)]
+  
+  error = sum((P_sim .- P_obs).^2) +
+          sum((U_sim .- U_obs).^2) +
+          sum((E_sim .- E_obs).^2) +
+          sum((V_sim .- V_obs).^2) +
+          sum((D_sim .- D_obs).^2)
+  return error
+end
+
+# --------------------------------------------------
+# Estimación inicial de parámetros
+# par = [r, K, α, β, γ, δ, κ, ν]
+# Usamos los parámetros calibrados para la población y estimaciones para los territoriales
+# --------------------------------------------------
+par_inicial_D = [0.02, 1e7, 1e-5, 1e-5, 1e-5, 1e-5, 4.0, 1e-5]
+
+# Optimización con el método Nelder-Mead
+opt_result_D = Optim.optimize(residuoCompleto, par_inicial_D, NelderMead())
+par_est_D = Optim.minimizer(opt_result_D)
+
+println(opt_result_D)
+println("Parámetros estimados:")
+println("r  = ", par_est_D[1])
+println("K  = ", par_est_D[2])
+println("α  = ", par_est_D[3])
+println("β  = ", par_est_D[4])
+println("γ  = ", par_est_D[5])
+println("δ  = ", par_est_D[6])
+println("κ  = ", par_est_D[7])
+println("ν  = ", par_est_D[8])
+
+# --------------------------------------------------
+# Resolver el sistema ODE del modelo acoplado
+# --------------------------------------------------
+prob_D = ODEProblem((u, par, t) -> modeloCompleto(u, par, t),
+                    u0_D, tspan, par_est_D)
+sol_D = solve(prob_D, Tsit5(), saveat=t_data)
+end
+
+# ╔═╡ 01abb6ec-f709-49cc-b67c-7c3aa1914827
+begin
+	# --------------------------------------------------
+	# Graficar cada variable en un eje distinto (subplots)
+	# Se usa un layout de 3 filas para acomodar las 5 variables
+	# --------------------------------------------------
+	anim = @animate for i in 1:length(t_data)
+	l1 = @layout [a; b; c; d; e]
+	p1 = plot(layout = l1, size=(1000,1400))
+	
+	# Población
+	plot!(p1[1], t_data .+ t0, P_obs, lw=2, linestyle=:dash, label="Población (obs)")
+	plot!(p1[1], t_data[1:i] .+ t0, [sol_D[j][1] for j in 1:i], lw=2, label="Población (sim)")
+	xlabel!(p1[1], "Tiempo (años)")
+	ylabel!(p1[1], "Número de personas")
+	title!(p1[1], "Población")
+	
+	# Huella Urbana
+	plot!(p1[2], t_data .+ t0, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+	plot!(p1[2], t_data[1:i] .+ t0, [sol_D[j][2] for j in 1:i], lw=2, label="Huella Urbana (sim)")
+	xlabel!(p1[2], "Tiempo (años)")
+	ylabel!(p1[2], "Hectáreas")
+	title!(p1[2], "Huella Urbana")
+	
+	# Área Protegida
+	plot!(p1[3], t_data .+ t0, E_obs, lw=2, linestyle=:dash, label="Área Protegida (obs)")
+	plot!(p1[3], t_data[1:i] .+ t0, [sol_D[j][3] for j in 1:i], lw=2, label="Área Protegida (sim)")
+	xlabel!(p1[3], "Tiempo (años)")
+	ylabel!(p1[3], "Hectáreas")
+	title!(p1[3], "Área Protegida")
+	
+	# Viviendas (ocupadas)
+	plot!(p1[4], t_data .+ t0, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
+	plot!(p1[4], t_data[1:i] .+ t0, [sol_D[j][4] for j in 1:i], lw=2, label="Viviendas (sim)")
+	xlabel!(p1[4], "Tiempo (años)")
+	ylabel!(p1[4], "Número de viviendas")
+	title!(p1[4], "Viviendas Ocupadas")
+	
+	# Área Disponible
+	plot!(p1[5], t_data .+ t0, D_obs, lw=2, linestyle=:dash, label="Área Disponible (obs)")
+	plot!(p1[5], t_data[1:i] .+ t0, [sol_D[j][5] for j in 1:i], lw=2, label="Área Disponible (sim)")
+	xlabel!(p1[5], "Tiempo (años)")
+	ylabel!(p1[5], "Hectáreas")
+	title!(p1[5], "Área Disponible")
+	end
+	gif(anim, "animacion_variables.gif", fps=20)
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
+CSV = "~0.10.15"
+DataFrames = "~1.7.0"
 DifferentialEquations = "~7.15.0"
-Interpolations = "~0.15.1"
 Optim = "~1.10.0"
 Plots = "~1.40.9"
 """
@@ -100,7 +467,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "739d01e9b63ce956f42ef4889cf6f95d4141d23f"
+project_hash = "fafc30d8dedd42dc1be85e425c7e138cb08fb6d3"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "30bb95a372787af850addf28ac937f1be7b79173"
@@ -215,12 +582,6 @@ weakdeps = ["SparseArrays"]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
 
-[[deps.AxisAlgorithms]]
-deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
-git-tree-sha1 = "01b8ccb13d68535d73d2b0c23e39bd23155fb712"
-uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
-version = "1.1.0"
-
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
 git-tree-sha1 = "a2c85f53ddcb15b4099da59867868bd40f005579"
@@ -303,6 +664,12 @@ deps = ["CpuId", "IfElse", "PrecompileTools", "Static"]
 git-tree-sha1 = "5a97e67919535d6841172016c9530fd69494e5ec"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 version = "0.2.6"
+
+[[deps.CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
+git-tree-sha1 = "deddd8725e5e1cc49ee205a1964256043720a6c3"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.10.15"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -448,10 +815,21 @@ git-tree-sha1 = "fcbb72b032692610bfbdb15018ac16a36cf2e406"
 uuid = "adafc99b-e345-5852-983c-f28acb93d879"
 version = "0.3.1"
 
+[[deps.Crayons]]
+git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
+uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
+version = "4.1.1"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.16.0"
+
+[[deps.DataFrames]]
+deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "fb61b4812c49343d7ef0b533ba982c46021938a6"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "1.7.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -765,6 +1143,17 @@ version = "1.1.1"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
+[[deps.FilePathsBase]]
+deps = ["Compat", "Dates"]
+git-tree-sha1 = "7878ff7172a8e6beedd1dea14bd27c3c6340d361"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.9.22"
+weakdeps = ["Mmap", "Test"]
+
+    [deps.FilePathsBase.extensions]
+    FilePathsBaseMmapExt = "Mmap"
+    FilePathsBaseTestExt = "Test"
+
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
@@ -965,6 +1354,19 @@ git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.5"
 
+[[deps.InlineStrings]]
+git-tree-sha1 = "45521d31238e87ee9f9732561bfee12d4eebd52d"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.4.2"
+
+    [deps.InlineStrings.extensions]
+    ArrowTypesExt = "ArrowTypes"
+    ParsersExt = "Parsers"
+
+    [deps.InlineStrings.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+    Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
+
 [[deps.IntegerMathUtils]]
 git-tree-sha1 = "b8ffb903da9f7b8cf695a8bead8e01814aa24b30"
 uuid = "18e54dd8-cb9d-406c-a71d-865a43cbb235"
@@ -980,16 +1382,6 @@ version = "2024.2.1+0"
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 version = "1.11.0"
-
-[[deps.Interpolations]]
-deps = ["Adapt", "AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "88a101217d7cb38a7b481ccd50d21876e1d1b0e0"
-uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.15.1"
-weakdeps = ["Unitful"]
-
-    [deps.Interpolations.extensions]
-    InterpolationsUnitfulExt = "Unitful"
 
 [[deps.IntervalSets]]
 git-tree-sha1 = "dba9ddf07f77f60450fe5d2e2beb9854d9a49bd0"
@@ -1011,6 +1403,11 @@ weakdeps = ["Dates", "Test"]
     [deps.InverseFunctions.extensions]
     InverseFunctionsDatesExt = "Dates"
     InverseFunctionsTestExt = "Test"
+
+[[deps.InvertedIndices]]
+git-tree-sha1 = "0dc7b50b8d436461be01300fd8cd45aa0274b038"
+uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
+version = "1.3.0"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "630b497eafcc20001bba38a4651b327dcfc491d2"
@@ -1861,6 +2258,12 @@ version = "4.0.12"
     MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
     MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "36d8b4b899628fb92c2749eb488d884a926614d3"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.3"
+
 [[deps.PositiveFactorizations]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
@@ -1890,6 +2293,12 @@ deps = ["TOML"]
 git-tree-sha1 = "9306f6085165d270f7e3db02af26a400d580f5c6"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.4.3"
+
+[[deps.PrettyTables]]
+deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "Reexport", "StringManipulation", "Tables"]
+git-tree-sha1 = "1101cd475833706e4d0e7b122218257178f48f34"
+uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+version = "2.4.0"
 
 [[deps.Primes]]
 deps = ["IntegerMathUtils"]
@@ -1964,16 +2373,6 @@ deps = ["Random"]
 git-tree-sha1 = "c6ec94d2aaba1ab2ff983052cf6a606ca5985902"
 uuid = "e6cf234a-135c-5ec9-84dd-332b85af5143"
 version = "1.6.0"
-
-[[deps.Ratios]]
-deps = ["Requires"]
-git-tree-sha1 = "1342a47bf3260ee108163042310d26f2be5ec90b"
-uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
-version = "0.4.5"
-weakdeps = ["FixedPointNumbers"]
-
-    [deps.Ratios.extensions]
-    RatiosFixedPointNumbersExt = "FixedPointNumbers"
 
 [[deps.RecipesBase]]
 deps = ["PrecompileTools"]
@@ -2138,6 +2537,12 @@ deps = ["Dates"]
 git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.1"
+
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "d0553ce4031a081cc42387a9b9c8441b7d99f32d"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.4.7"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -2365,6 +2770,12 @@ git-tree-sha1 = "f35f6ab602df8413a50c4a25ca14de821e8605fb"
 uuid = "7792a7ef-975c-4747-a70f-980b88e8d1da"
 version = "0.5.7"
 
+[[deps.StringManipulation]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "a6b1675a536c5ad1a60e5a5153e1fee12eb146e3"
+uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
+version = "0.4.0"
+
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 version = "1.11.0"
@@ -2588,11 +2999,16 @@ git-tree-sha1 = "93f43ab61b16ddfb2fd3bb13b3ce241cafb0e6c9"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.31.0+0"
 
-[[deps.WoodburyMatrices]]
-deps = ["LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "c1a7aa6219628fcd757dede0ca95e245c5cd9511"
-uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
-version = "1.0.0"
+[[deps.WeakRefStrings]]
+deps = ["DataAPI", "InlineStrings", "Parsers"]
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "1.4.2"
+
+[[deps.WorkerUtilities]]
+git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
+uuid = "76eceee3-57b5-4d4a-8e66-0e911cebbf60"
+version = "1.6.1"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
@@ -2880,15 +3296,36 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
+# ╟─4014a39a-863e-4d4c-9255-80ade3a3fe21
 # ╠═8108fd90-e1ba-11ef-2220-c34f038a1f2d
+# ╟─9d2356df-f055-4c9e-ae10-b9818da13eb9
+# ╠═0ba48e4e-fddb-4c12-90ad-90528a2b466e
+# ╠═5214ce4c-48a6-4cd5-b65d-bee6525a8447
+# ╠═764b300d-f44b-4c92-9076-bcf9c2495522
+# ╟─1f0f485a-6b3d-4fff-a16d-f932ba79feef
+# ╟─7133f62d-0d8c-45b8-b1c7-40402cc6b999
 # ╠═1641060b-0f1d-40b4-88d4-86ab35030f45
+# ╠═1f55c81b-d6ff-4fe8-841f-22db25c9264d
 # ╠═b2e730f5-6471-4558-8d19-c95b704b98e6
-# ╠═28937b82-d193-4bde-8933-01998644d45a
-# ╠═085d7b63-b6f1-4b14-b9e2-386610f86ec8
 # ╠═3bc84004-8182-42d2-a064-cd817720128d
 # ╠═270f1385-5c9e-4b46-b9aa-f87144100f68
 # ╠═7ec40f72-578a-4fca-b67d-571588ad786b
 # ╠═fe8f5efe-245a-40e5-9a41-af921449af47
+# ╠═126ad5ed-a32d-4ac0-b3d4-78fb11faef9f
+# ╠═f38eda3e-2c1b-4479-8a6b-c6bba01d3389
+# ╠═24ab24ad-7819-404d-ac67-8388c67c6153
 # ╠═80ff100b-c076-4de2-a7d5-9e2707eb1a6a
+# ╟─89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
+# ╟─f70bcb17-b3d2-4074-ae17-9151ba453f61
+# ╠═f764711d-47d3-492e-9aed-76bd29736493
+# ╠═72c968a1-1fb3-4025-a7bf-fa989204f08c
+# ╠═46c31ba6-bc97-4986-8744-b0846010cb93
+# ╠═88ea74a2-5890-46f4-bcb1-9c272222c720
+# ╠═692ea88a-d3e4-4657-ba65-a28397929038
+# ╠═2022ed7c-0efd-4db3-910a-79a09b41651f
+# ╠═0dfb8363-d1c0-4e37-89d4-ba7cb33380a5
+# ╠═432e31c6-6613-4722-a474-bd8e956cfabc
+# ╠═32298ca6-f2e7-461a-971e-e017be682679
+# ╠═01abb6ec-f709-49cc-b67c-7c3aa1914827
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
