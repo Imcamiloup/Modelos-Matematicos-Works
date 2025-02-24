@@ -4,141 +4,18 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 8108fd90-e1ba-11ef-2220-c34f038a1f2d
+# ╔═╡ d81e81a2-0989-49d4-b034-90b3f5506702
 using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames
 
-# ╔═╡ 4014a39a-863e-4d4c-9255-80ade3a3fe21
-html"""
-<h1 style="text-align: center">Modelos</h1>
-"""
-
-# ╔═╡ 9d2356df-f055-4c9e-ae10-b9818da13eb9
-html"""
-<h2>0. Carga de datos</h2>
-"""
-
-# ╔═╡ 0ba48e4e-fddb-4c12-90ad-90528a2b466e
-df_poblacion = CSV.read("./datos/datos_poblacion.csv", DataFrame)
-
-# ╔═╡ 5214ce4c-48a6-4cd5-b65d-bee6525a8447
-df_territorio = CSV.read("./datos/datos_territorio.csv", DataFrame)
-
-# ╔═╡ 764b300d-f44b-4c92-9076-bcf9c2495522
-begin
-	t_years = df_poblacion.año
-	t0 = minimum(t_years)
-	t_data = Int.(t_years .- t0 .+ 1)
-end
-
-# ╔═╡ 43aecd0b-0be8-4335-b0c1-e0d59d8cfd5c
-html"""
-<h2>1. Definición de modelos:</h2>
-"""
-
-# ╔═╡ 1f0f485a-6b3d-4fff-a16d-f932ba79feef
-html"""
-<h3> 1.1. Modelo población:</h2>
-"""
-
-# ╔═╡ 7133f62d-0d8c-45b8-b1c7-40402cc6b999
+# ╔═╡ 7d98c28d-cf8b-4bdd-84be-0c3a293607cf
 md"""
-Consideraremos el modelo logístico con población:
-
-$$\frac{dP}{dt}= rP(t) \left(1 - \frac{P(t)}{K}\right) + I(t),$$
-
-donde $r$ es la tasa de crecimiento y $K$ la capacidad de carga.
+# Modelo - territorio
 """
 
-# ╔═╡ 1f55c81b-d6ff-4fe8-841f-22db25c9264d
-años = t_data
-
-# ╔═╡ b2e730f5-6471-4558-8d19-c95b704b98e6
-migracion = df_poblacion[!, "migración"]
-
-# ╔═╡ 1641060b-0f1d-40b4-88d4-86ab35030f45
-# Modelo logístico con migración
-function modeloLogistico(du, u, par, t)
-  P = u[1]
-  r, K = par
-  I_t = migracion[Int(round(t))]
-  du[1] = r * P * (1 - P / K) + I_t
-end
-
-# ╔═╡ 3bc84004-8182-42d2-a064-cd817720128d
-poblacion = df_poblacion[!, "población"]
-
-# ╔═╡ 270f1385-5c9e-4b46-b9aa-f87144100f68
-# Función de error para optimización
-function residuoLogistico(par, pop_obs, tiempo)
-  r, K = par
-  P0 = pop_obs[1]
-  u0 = [P0]
-  tspan = (tiempo[1], tiempo[end])
-  prob = ODEProblem(modeloLogistico, u0, tspan, par)
-  sol = solve(prob, saveat=tiempo)
-  pop_model = [sol(t)[1] for t in tiempo]
-  res = pop_obs .- pop_model
-  return norm(res)
-end
-
-# ╔═╡ 7ec40f72-578a-4fca-b67d-571588ad786b
-begin
-	# Ajuste de parámetros
-	par_inicial_P = [0.02, 10^7]  # Valores iniciales estimados
-	opt_P = Optim.optimize(par -> residuoLogistico(par, poblacion, años), par_inicial_P, NelderMead())
-	par_est_P = opt_P.minimizer
-
-	r = par_est_P[1]
-	K = par_est_P[2]
-	println("Parámetros estimados:")
-	println("r = ", r)
-	println("K = ", K)
-end
-
-# ╔═╡ fe8f5efe-245a-40e5-9a41-af921449af47
-begin 
-	# Resolver la ecuación diferencial con los parámetros óptimos
-	P0 = poblacion[1]
-	u0_P = [P0]
-	tspan_P = (años[1], años[end])
-	prob_P = ODEProblem(modeloLogistico, u0_P, tspan_P, par_est_P)
-	sol_P = solve(prob_P, saveat=años, reltol=1e-8)
-end
-
-# ╔═╡ 126ad5ed-a32d-4ac0-b3d4-78fb11faef9f
-# Solución analítica del modelo logístico (falta meter dI/dt)
-function P_logistico(t)
-  return (K * P0 * exp(r * t)) / (K + P0 * (exp(r * t) - 1))
-end
-
-# ╔═╡ f38eda3e-2c1b-4479-8a6b-c6bba01d3389
-function P(t)
-	return sol_P(t)[1]
-end
-
-# ╔═╡ 24ab24ad-7819-404d-ac67-8388c67c6153
-function dP_(t)
-	return r * P(t) * (1 - P(t) / K) + migracion[Int64(round(t))]
-end
-
-# ╔═╡ 80ff100b-c076-4de2-a7d5-9e2707eb1a6a
-begin
-	# Graficar
-	plot(años .+ t0, poblacion, label="Población Observada", marker=:o, color=:blue)
-	plot!(años .+ t0, [sol_P(t)[1] for t in años], label="Población Modelada", linestyle=:dash, color=:red)
-	plot!(años .+ t0, [P_logistico(t) for t in años], label="Solución analítica", linestyle=:dash, color=:green)
-	xlabel!("Año")
-	ylabel!("Población")
-	title!("Ajuste del Modelo Logístico con Migración")
-end
-
-# ╔═╡ 89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
-html"""
-<h3> 1.2. Modelo territorio:</h2>
-"""
-
-# ╔═╡ 951cf7f4-ca9a-4960-810f-da74c24cffea
+# ╔═╡ 8a0e395b-33c7-40db-b762-7e3475263685
 md"""
+## 1. Definición de modelos
+
 Para el componente de territorio consideramos las siguientes variables:
 
 - **$U(t)$**: Huella urbana en el tiempo $t$, medida en número de hectáreas ($ha$) urbanizadas.
@@ -151,9 +28,9 @@ Para el componente de territorio consideramos las siguientes variables:
 Hay dos alternativas principales para este modelo:
 """
 
-# ╔═╡ 1e895a64-5352-42ba-a80b-e0ffa0fbdf15
+# ╔═╡ f931a9f6-656c-4bd2-9256-486064a6fc41
 md"""
-### 1.2.1. Modelo intuitivo
+### 1.1. Modelo intuitivo
 
 Modelo intuitivo en el que la expansión de la huella urbana es proporcional al crecimiento poblacional y a la demanda de viviendas, pero limitada por la estructura ecológica (área protegida):
 
@@ -186,14 +63,50 @@ $$\frac{dP}{dt} = \rho P(t) \;( 1- \frac{P(t)}{k_1U(t) - k_2E(t)})$$
 con $\rho$ tasa de crecimiento intrínseco y $k_1U(t) + k_2E(t)$ la capacidad de carga que se contribuye por $U(t)$ y se limita por $E(t)$.
 """
 
-# ╔═╡ 5cdc3238-a1f2-422c-8303-bf677c25dead
-html"""
-<h3>Análisis de diagramas de fase</h3>
+# ╔═╡ 0383a294-b86e-4d33-ae3c-5d9e637320ac
+md"""
+### 1.2. Modelo SIR
+
+Modelo basado en el modelo SIR (epidemiológico). Suponemos que es un sistema cerrado, esto es, $D(t) + N(t) + U(t) = C$ para todo $t \geq 0$, donde $C$ es el área total (en este caso de Bogotá).
+
+$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
+
+$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
+
+$$\frac{dU}{dt} = \gamma N(t)$$
+
+donde $\alpha, \gamma > 0$.
+
+No obstante, dado que $U(t)$ no aparece en ninguna de las ecuaciones del sistema, vemos que esta puede determinarse a partir de $N(t)$ y no aporta en nada a la dinámica del sistema. Por tanto, este puede reducirse a:
+
+$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
+
+$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
+
+*Nota: El primer modelo toma la dinámica de la población mientras el segundo no. ¿Es posible incluir esta en el modelo 2? ¿Es conveniente? Tampoco se captura el área protegida en el segundo.*
+
+Para este componente hay datos de una considerable cantidad de años (separados por intervalos de tiempo) para la huella urbana, área protegida y la demanda de viviendas. Del suelo en desarrollo no encontramos datos por lo que puede ser más práctico un modelo que solo considere los compartimentos $D$ y $U$, en también se presenta esta simplificación.
 """
 
-# ╔═╡ d3bfbda6-ffb1-4dfe-9720-9bf204799b3d
+# ╔═╡ 61f49797-a34a-4c25-a4d5-e29e432345b1
 md"""
-#### Puntos fijos
+## 2. Análisis de diagramas de fase
+"""
+
+# ╔═╡ dddbff92-1393-4b85-bf60-82a641fd4877
+md"""
+### 2.1. Modelo Intuitivo
+
+$$\frac{dU}{dt} = \bar\alpha\; P(t) - \gamma E(t) + \bar\beta$$
+
+$$\frac{dE}{dt} = -\delta U(t)$$
+
+$$\frac{dP}{dt} = \rho P(t) \;( 1- \frac{P(t)}{k_1U(t) - k_2E(t)})$$
+"""
+
+# ╔═╡ d2fe1877-b603-438e-bfc6-c8f2542641cf
+md"""
+#### 2.1.1. Puntos fijos
 
 Al igualar a cero obtenemos las siguientes puntos fijos:
 
@@ -214,9 +127,9 @@ $$P(t) = k_2E(t) = \frac{k_2\bar\beta}{k_2 \bar\alpha + \gamma}$$
 $$E(t) = \frac{\bar\beta}{k_2 \bar\alpha + \gamma}$$
 """
 
-# ╔═╡ 86b03a8e-ccce-4396-8fb0-9ca40219d8b1
+# ╔═╡ 85285251-b407-40b1-a739-047e10467f3a
 md"""
-#### Jacobiano
+#### 2.1.2. Jacobiano
 
 Para el jacobiano tenemos que:
 
@@ -237,9 +150,9 @@ $$J =
 Donde $K = k_1U(t) - k_2E(t)$.
 """
 
-# ╔═╡ 722a849b-d82e-4db3-bb61-810440666d81
+# ╔═╡ aa243654-0eb2-40b6-a5fc-fa4fc4a8dfeb
 md"""
-#### Valores y vectores propios
+#### 2.1.3. Valores y vectores propios
 
 Se debe evaluar el jacobiano en los puntos fijos para posteriormente sacar los valores y vectores propios.
 
@@ -319,9 +232,9 @@ $$\vec{v_1} =
 
 """
 
-# ╔═╡ 1ba7d300-799c-4eb5-a929-7b84d420236a
+# ╔═╡ 265d8a5b-b482-4a33-8a33-e5893bfbec68
 md"""
-#### Análisis
+#### 2.1.4. Análisis
 - $(U(t)^*, E(t)^*, P(t)^*) = (0, \frac{\bar\beta}{\gamma}, 0):$
 
 $$\lambda_1 = \rho, \;\; \lambda_2 = \gamma, \;\; \lambda_3 = -\gamma$$
@@ -337,336 +250,18 @@ De manera análoga al punto anterior, en todas las combinaciones posibles de sig
 
 """
 
-# ╔═╡ 00c347a2-2067-491e-a5b6-ee9b92ab2daf
-html"""
-<h3>Implementación del modelo</h3>
-"""
-
-# ╔═╡ f764711d-47d3-492e-9aed-76bd29736493
-
-begin
-	# Extraer datos observados para las variables territoriales
-	U_obs = df_territorio[!, "Huella Urbana"]
-	E_obs = df_territorio[!, "Área protegida"]
-	D_obs = df_territorio[!, "Area disponible"]
-	V_obs = df_territorio[!, "Viviendas (ocupadas)"]
-end
-
-# ╔═╡ 72c968a1-1fb3-4025-a7bf-fa989204f08c
-# --------------------------------------------------
-# Modelo de territorio (enfoque desacoplado)
-# Variables del sistema: U(t), E(t), V(t), D(t)
-# Parámetros a estimar: par = [α, β, γ, δ, κ, ν]
-# Ecuaciones:
-#   dU/dt = α * P(t) + β * V(t) - γ * E(t)
-#   dE/dt = -δ * U(t)
-#   dV/dt = (1/κ) * dP/dt
-#   dD/dt = -ν * dU/dt
-# --------------------------------------------------
-function modeloTerritorio(u, par, t)
-  α, β, γ, δ, κ, ν = par
-  U, E, V, D = u
-  P = sol_P(t)[1]
-  dP = dP_(t)
-  dU = α * P + β * V - γ * E
-  dE = -δ * U
-  dV = (1 / κ) * dP
-  dD = -ν * dU
-  return [dU, dE, dV, dD]
-end
-
-# ╔═╡ 46c31ba6-bc97-4986-8744-b0846010cb93
-# --------------------------------------------------
-# Función de error para la optimización
-# Se integra el sistema y se compara con los datos observados
-# --------------------------------------------------
-function residuoTerritorio(par)
-  # Condiciones iniciales tomadas de los datos (en t = t_data[1])
-  u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
-  # Asegurarse de que tspan sea una tupla de dos elementos:
-  tspan = (t_data[1], t_data[end])
-  # Crear el problema ODE, pasando 'par' como parámetros:
-  prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
-                    u0, tspan, par)
-  # Resolver el problema, guardando la solución en los tiempos definidos en t_data:
-  sol = solve(prob, Tsit5(), saveat=t_data)
-  # Extraer la solución simulada para cada variable:
-  U_sim = [sol[i][1] for i in 1:length(sol)]
-  E_sim = [sol[i][2] for i in 1:length(sol)]
-  V_sim = [sol[i][3] for i in 1:length(sol)]
-  D_sim = [sol[i][4] for i in 1:length(sol)]
-  # Suma de errores cuadrados
-  error = sum((U_sim .- U_obs).^2) +
-          sum((E_sim .- E_obs).^2) +
-          sum((V_sim .- V_obs).^2) +
-          sum((D_sim .- D_obs).^2)
-  return error
-end
-
-# ╔═╡ 88ea74a2-5890-46f4-bcb1-9c272222c720
-# --------------------------------------------------
-# Optimización de parámetros territoriales
-# Se define una estimación inicial para [α, β, γ, δ, κ, ν]
-# --------------------------------------------------
-# par_inicial = [1e-3, 1e-5, 1e-5, -1e-5, 4.0, 1.0]
-par_inicial = [1e-3, 1e-3, 1e-3, -1e-5, 2.0, 1.0]
-
-# ╔═╡ 692ea88a-d3e4-4657-ba65-a28397929038
-begin
-	opt_result = Optim.optimize(residuoTerritorio, par_inicial, NelderMead())
-	par_est = Optim.minimizer(opt_result)
-
-	println(opt_result)
-	println("Parámetros territoriales estimados:")
-	println("α = ", par_est[1])
-	println("β = ", par_est[2])
-	println("γ = ", par_est[3])
-	println("δ = ", par_est[4])
-	println("κ = ", par_est[5])
-	println("ν = ", par_est[6])
-end
-
-# ╔═╡ 2022ed7c-0efd-4db3-910a-79a09b41651f
-begin
-	# --------------------------------------------------
-	# Resolución del sistema territorial con parámetros estimados
-	# --------------------------------------------------
-	u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
-	tspan = (t_data[1], t_data[end])  # Aseguramos que sea una tupla de 2 elementos
-	prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
-	                   u0, tspan, par_est)
-	sol = solve(prob, Tsit5(), saveat=t_data)
-end
-
-# ╔═╡ 0dfb8363-d1c0-4e37-89d4-ba7cb33380a5
-begin
-	# --------------------------------------------------
-	# Graficar resultados (observados vs simulados)
-	# --------------------------------------------------
-	plt = plot(t_data, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
-	plot!(plt, t_data, E_obs, lw=2, linestyle=:dash, label="Área protegida (obs)")
-	plot!(plt, t_data, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
-	plot!(plt, t_data, D_obs, lw=2, linestyle=:dash, label="Área disponible (obs)")
-	
-	plot!(plt, t_data, [sol[i][1] for i in 1:length(sol)], lw=2, label="Huella Urbana (sim)")
-	plot!(plt, t_data, [sol[i][2] for i in 1:length(sol)], lw=2, label="Área protegida (sim)")
-	plot!(plt, t_data, [sol[i][3] for i in 1:length(sol)], lw=2, label="Viviendas (sim)")
-	plot!(plt, t_data, [sol[i][4] for i in 1:length(sol)], lw=2, label="Área disponible (sim)")
-	xlabel!("Tiempo (años)")
-	ylabel!("Valor de la variable")
-	title!("Comparación: Datos observados vs. Simulación del modelo territorial")
-end
-
-# ╔═╡ 432e31c6-6613-4722-a474-bd8e956cfabc
-begin
-	# Definir un layout de 2x2
-	l = @layout [a b; c d]
-	
-	# Crear la figura con 4 subplots
-	p = plot(layout = l, size=(800,600))
-	
-	# Huella Urbana
-	plot!(p[1], t_data .+ t0, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
-	plot!(p[1], t_data .+ t0, [sol[i][1] for i in 1:length(sol)], lw=2, label="Huella Urbana (sim)")
-	xlabel!(p[1], "Tiempo (años)")
-	ylabel!(p[1], "Hectáreas")
-	title!(p[1], "Huella Urbana")
-	
-	# Área Protegida
-	plot!(p[2], t_data .+ t0, E_obs, lw=2, linestyle=:dash, label="Área Protegida (obs)")
-	plot!(p[2], t_data .+ t0, [sol[i][2] for i in 1:length(sol)], lw=2, label="Área Protegida (sim)")
-	xlabel!(p[2], "Tiempo (años)")
-	ylabel!(p[2], "Hectáreas")
-	title!(p[2], "Área Protegida")
-	
-	# Viviendas (ocupadas)
-	plot!(p[3], t_data .+ t0, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
-	plot!(p[3], t_data .+ t0, [sol[i][3] for i in 1:length(sol)], lw=2, label="Viviendas (sim)")
-	xlabel!(p[3], "Tiempo (años)")
-	ylabel!(p[3], "Número de viviendas")
-	title!(p[3], "Viviendas Ocupadas")
-	
-	# Área Disponible
-	plot!(p[4], t_data .+ t0, D_obs, lw=2, linestyle=:dash, label="Área Disponible (obs)")
-	plot!(p[4], t_data .+ t0, [sol[i][4] for i in 1:length(sol)], lw=2, label="Área Disponible (sim)")
-	xlabel!(p[4], "Tiempo (años)")
-	ylabel!(p[4], "Hectáreas")
-	title!(p[4], "Área Disponible")
-end
-
-# ╔═╡ 32298ca6-f2e7-461a-971e-e017be682679
-begin
-# Datos observados
-P_obs = df_poblacion[!, "población"]
-
-# Condiciones iniciales para el modelo acoplado:
-# u0 = [P(0), U(0), E(0), V(0), D(0)]
-u0_D = [P_obs[1], U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
-
-# --------------------------------------------------
-# Modelo Acoplado: población y territorio
-# Estado: u = [P, U, E, V, D]
-# Parámetros: par = [r, K, α, β, γ, δ, κ, ν]
-#   - Población: dP/dt = r * P * (1 - P/K)
-#   - Huella Urbana: dU/dt = α * P + β * V - γ * E
-#   - Área Protegida: dE/dt = -δ * U
-#   - Viviendas: dV/dt = (1/κ) * dP/dt
-#   - Área Disponible: dD/dt = -ν * dU/dt
-# --------------------------------------------------
-function modeloCompleto(u, par, t)
-  r, K, α, β, γ, δ, κ, ν = par
-  P = u[1]
-  U = u[2]
-  E = u[3]
-  V = u[4]
-  D = u[5]
-  
-  dP = r * P * (1 - P / K)
-  dU = α * P + β * V - γ * E
-  dE = -δ * U
-  dV = (1 / κ) * dP
-  dD = -ν * dU
-  
-  return [dP, dU, dE, dV, dD]
-end
-
-# --------------------------------------------------
-# Función de error para la optimización del modelo acoplado
-# Se integran las ecuaciones y se calcula la suma de errores cuadrados
-# entre las soluciones simuladas y los datos observados.
-# --------------------------------------------------
-function residuoCompleto(par_D)
-  tspan = (t_data[1], t_data[end])
-  prob = ODEProblem((u, par, t) -> modeloCompleto(u, par, t),
-                    u0_D, tspan, par_D)
-  sol = solve(prob, Tsit5(), saveat=t_data)
-  
-  # Extraer las soluciones simuladas
-  P_sim = [sol[i][1] for i in 1:length(sol)]
-  U_sim = [sol[i][2] for i in 1:length(sol)]
-  E_sim = [sol[i][3] for i in 1:length(sol)]
-  V_sim = [sol[i][4] for i in 1:length(sol)]
-  D_sim = [sol[i][5] for i in 1:length(sol)]
-  
-  error = sum((P_sim .- P_obs).^2) +
-          sum((U_sim .- U_obs).^2) +
-          sum((E_sim .- E_obs).^2) +
-          sum((V_sim .- V_obs).^2) +
-          sum((D_sim .- D_obs).^2)
-  return error
-end
-
-# --------------------------------------------------
-# Estimación inicial de parámetros
-# par = [r, K, α, β, γ, δ, κ, ν]
-# Usamos los parámetros calibrados para la población y estimaciones para los territoriales
-# --------------------------------------------------
-par_inicial_D = [0.02, 1e7, 1e-5, 1e-5, 1e-5, 1e-5, 4.0, 1e-5]
-
-# Optimización con el método Nelder-Mead
-opt_result_D = Optim.optimize(residuoCompleto, par_inicial_D, NelderMead())
-par_est_D = Optim.minimizer(opt_result_D)
-
-println(opt_result_D)
-println("Parámetros estimados:")
-println("r  = ", par_est_D[1])
-println("K  = ", par_est_D[2])
-println("α  = ", par_est_D[3])
-println("β  = ", par_est_D[4])
-println("γ  = ", par_est_D[5])
-println("δ  = ", par_est_D[6])
-println("κ  = ", par_est_D[7])
-println("ν  = ", par_est_D[8])
-
-# --------------------------------------------------
-# Resolver el sistema ODE del modelo acoplado
-# --------------------------------------------------
-prob_D = ODEProblem((u, par, t) -> modeloCompleto(u, par, t),
-                    u0_D, tspan, par_est_D)
-sol_D = solve(prob_D, Tsit5(), saveat=t_data)
-end
-
-# ╔═╡ 01abb6ec-f709-49cc-b67c-7c3aa1914827
-begin
-	# --------------------------------------------------
-	# Graficar cada variable en un eje distinto (subplots)
-	# Se usa un layout de 3 filas para acomodar las 5 variables
-	# --------------------------------------------------
-	anim = @animate for i in 1:length(t_data)
-	l1 = @layout [a; b; c; d; e]
-	p1 = plot(layout = l1, size=(1000,1400))
-	
-	# Población
-	plot!(p1[1], t_data .+ t0, P_obs, lw=2, linestyle=:dash, label="Población (obs)")
-	plot!(p1[1], t_data[1:i] .+ t0, [sol_D[j][1] for j in 1:i], lw=2, label="Población (sim)")
-	xlabel!(p1[1], "Tiempo (años)")
-	ylabel!(p1[1], "Número de personas")
-	title!(p1[1], "Población")
-	
-	# Huella Urbana
-	plot!(p1[2], t_data .+ t0, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
-	plot!(p1[2], t_data[1:i] .+ t0, [sol_D[j][2] for j in 1:i], lw=2, label="Huella Urbana (sim)")
-	xlabel!(p1[2], "Tiempo (años)")
-	ylabel!(p1[2], "Hectáreas")
-	title!(p1[2], "Huella Urbana")
-	
-	# Área Protegida
-	plot!(p1[3], t_data .+ t0, E_obs, lw=2, linestyle=:dash, label="Área Protegida (obs)")
-	plot!(p1[3], t_data[1:i] .+ t0, [sol_D[j][3] for j in 1:i], lw=2, label="Área Protegida (sim)")
-	xlabel!(p1[3], "Tiempo (años)")
-	ylabel!(p1[3], "Hectáreas")
-	title!(p1[3], "Área Protegida")
-	
-	# Viviendas (ocupadas)
-	plot!(p1[4], t_data .+ t0, V_obs, lw=2, linestyle=:dash, label="Viviendas (obs)")
-	plot!(p1[4], t_data[1:i] .+ t0, [sol_D[j][4] for j in 1:i], lw=2, label="Viviendas (sim)")
-	xlabel!(p1[4], "Tiempo (años)")
-	ylabel!(p1[4], "Número de viviendas")
-	title!(p1[4], "Viviendas Ocupadas")
-	
-	# Área Disponible
-	plot!(p1[5], t_data .+ t0, D_obs, lw=2, linestyle=:dash, label="Área Disponible (obs)")
-	plot!(p1[5], t_data[1:i] .+ t0, [sol_D[j][5] for j in 1:i], lw=2, label="Área Disponible (sim)")
-	xlabel!(p1[5], "Tiempo (años)")
-	ylabel!(p1[5], "Hectáreas")
-	title!(p1[5], "Área Disponible")
-	end
-	gif(anim, "animacion_variables.gif", fps=20)
-end
-
-# ╔═╡ 57e123f9-6f95-4603-b40a-a9d648780f28
+# ╔═╡ 4fe2082b-df20-469f-8dc0-02342822da39
 md"""
-### 1.2.2. Modelo SIR
-
-Modelo basado en el modelo SIR (epidemiológico). Suponemos que es un sistema cerrado, esto es, $D(t) + N(t) + U(t) = C$ para todo $t \geq 0$, donde $C$ es el área total (en este caso de Bogotá).
+### 2.2. Modelo SIR
 
 $$\frac{dD}{dt} = -\alpha D(t)N(t)$$
 
-$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
-
-$$\frac{dU}{dt} = \gamma N(t)$$
-
-donde $\alpha, \gamma > 0$.
-
-No obstante, dado que $U(t)$ no aparece en ninguna de las ecuaciones del sistema, vemos que esta puede determinarse a partir de $N(t)$ y no aporta en nada a la dinámica del sistema. Por tanto, este puede reducirse a:
-
-$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
-
-$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
-
-*Nota: El primer modelo toma la dinámica de la población mientras el segundo no. ¿Es posible incluir esta en el modelo 2? ¿Es conveniente? Tampoco se captura el área protegida en el segundo.*
-
-Para este componente hay datos de una considerable cantidad de años (separados por intervalos de tiempo) para la huella urbana, área protegida y la demanda de viviendas. Del suelo en desarrollo no encontramos datos por lo que puede ser más práctico un modelo que solo considere los compartimentos $D$ y $U$, en también se presenta esta simplificación.
+$$\frac{dN}{dt} =N(t) \; (\alpha D(t) - \gamma )$$
 """
 
-# ╔═╡ 620c9aa3-68f7-4d4f-8607-c78819ebd487
-html"""
-<h3>Análisis de diagramas de fase</h3>
-"""
-
-# ╔═╡ 191e5496-3731-4759-954c-19eeb4d091c3
+# ╔═╡ f4571420-b25f-40ac-9ebf-8e89c916b27f
 md"""
-#### Puntos fijos
+#### 2.1.2. Puntos fijos
 
 Al igualar a cero obtenemos el siguiente punto fijo:
 
@@ -677,9 +272,9 @@ $$D(t) = D$$
 El este caso, tomamos a $D(t)$ como una constante
 """
 
-# ╔═╡ 9f0cab78-1520-48db-ab2f-acd9ccde4e67
+# ╔═╡ e460f387-d7b3-4bd5-a01b-2ce34d69baf9
 md"""
-#### Jacobiano
+#### 2.2.2. Jacobiano
 
 Para el jacobiano tenemos que:
 
@@ -696,9 +291,9 @@ $$J =
 \end{bmatrix}$$
 """
 
-# ╔═╡ f6725e4b-c500-4153-b661-12cd2823a432
+# ╔═╡ a81fc039-0e67-4d52-bf9e-852532b4f5d7
 md"""
-#### Valores y vectores propios
+#### 2.2.3. Valores y vectores propios
 Se debe evaluar el jacobiano en el punto fijo para posteriormente sacar los valores y vectores propios.
 
 - $(N(t)^*, D(t)^*) = (0, D):$
@@ -728,20 +323,15 @@ $$\vec{v_1} =
 \end{pmatrix}$$
 """
 
-# ╔═╡ 4b005a19-254c-490a-ba92-d93790622b3a
+# ╔═╡ f24e58f5-18f9-42a3-b0b3-acd4f215297f
 md"""
-#### Análisis
+#### 2.2.4. Análisis
 
 - $(N(t)^*, D(t)^*) = (0, D):$
 
 $$\lambda_1 = \alpha - \gamma , \;\; \lambda_2 = 0$$
 
 Dado que uno de los valores propios es cero, no hay equililibrios isolados
-"""
-
-# ╔═╡ 2439ca8d-672d-49c6-b8b7-378144aeb8ab
-html"""
-<h3>Implementación del modelo</h3>
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -3597,51 +3187,21 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╟─4014a39a-863e-4d4c-9255-80ade3a3fe21
-# ╠═8108fd90-e1ba-11ef-2220-c34f038a1f2d
-# ╟─9d2356df-f055-4c9e-ae10-b9818da13eb9
-# ╠═0ba48e4e-fddb-4c12-90ad-90528a2b466e
-# ╠═5214ce4c-48a6-4cd5-b65d-bee6525a8447
-# ╠═764b300d-f44b-4c92-9076-bcf9c2495522
-# ╟─43aecd0b-0be8-4335-b0c1-e0d59d8cfd5c
-# ╟─1f0f485a-6b3d-4fff-a16d-f932ba79feef
-# ╟─7133f62d-0d8c-45b8-b1c7-40402cc6b999
-# ╠═1641060b-0f1d-40b4-88d4-86ab35030f45
-# ╠═1f55c81b-d6ff-4fe8-841f-22db25c9264d
-# ╠═b2e730f5-6471-4558-8d19-c95b704b98e6
-# ╠═3bc84004-8182-42d2-a064-cd817720128d
-# ╠═270f1385-5c9e-4b46-b9aa-f87144100f68
-# ╠═7ec40f72-578a-4fca-b67d-571588ad786b
-# ╠═fe8f5efe-245a-40e5-9a41-af921449af47
-# ╠═126ad5ed-a32d-4ac0-b3d4-78fb11faef9f
-# ╠═f38eda3e-2c1b-4479-8a6b-c6bba01d3389
-# ╠═24ab24ad-7819-404d-ac67-8388c67c6153
-# ╠═80ff100b-c076-4de2-a7d5-9e2707eb1a6a
-# ╟─89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
-# ╟─951cf7f4-ca9a-4960-810f-da74c24cffea
-# ╟─1e895a64-5352-42ba-a80b-e0ffa0fbdf15
-# ╟─5cdc3238-a1f2-422c-8303-bf677c25dead
-# ╟─d3bfbda6-ffb1-4dfe-9720-9bf204799b3d
-# ╟─86b03a8e-ccce-4396-8fb0-9ca40219d8b1
-# ╟─722a849b-d82e-4db3-bb61-810440666d81
-# ╟─1ba7d300-799c-4eb5-a929-7b84d420236a
-# ╟─00c347a2-2067-491e-a5b6-ee9b92ab2daf
-# ╠═f764711d-47d3-492e-9aed-76bd29736493
-# ╠═72c968a1-1fb3-4025-a7bf-fa989204f08c
-# ╠═46c31ba6-bc97-4986-8744-b0846010cb93
-# ╠═88ea74a2-5890-46f4-bcb1-9c272222c720
-# ╠═692ea88a-d3e4-4657-ba65-a28397929038
-# ╠═2022ed7c-0efd-4db3-910a-79a09b41651f
-# ╠═0dfb8363-d1c0-4e37-89d4-ba7cb33380a5
-# ╠═432e31c6-6613-4722-a474-bd8e956cfabc
-# ╠═32298ca6-f2e7-461a-971e-e017be682679
-# ╠═01abb6ec-f709-49cc-b67c-7c3aa1914827
-# ╟─57e123f9-6f95-4603-b40a-a9d648780f28
-# ╟─620c9aa3-68f7-4d4f-8607-c78819ebd487
-# ╟─191e5496-3731-4759-954c-19eeb4d091c3
-# ╟─9f0cab78-1520-48db-ab2f-acd9ccde4e67
-# ╟─f6725e4b-c500-4153-b661-12cd2823a432
-# ╟─4b005a19-254c-490a-ba92-d93790622b3a
-# ╟─2439ca8d-672d-49c6-b8b7-378144aeb8ab
+# ╠═d81e81a2-0989-49d4-b034-90b3f5506702
+# ╟─7d98c28d-cf8b-4bdd-84be-0c3a293607cf
+# ╟─8a0e395b-33c7-40db-b762-7e3475263685
+# ╟─f931a9f6-656c-4bd2-9256-486064a6fc41
+# ╟─0383a294-b86e-4d33-ae3c-5d9e637320ac
+# ╟─61f49797-a34a-4c25-a4d5-e29e432345b1
+# ╟─dddbff92-1393-4b85-bf60-82a641fd4877
+# ╟─d2fe1877-b603-438e-bfc6-c8f2542641cf
+# ╟─85285251-b407-40b1-a739-047e10467f3a
+# ╟─aa243654-0eb2-40b6-a5fc-fa4fc4a8dfeb
+# ╟─265d8a5b-b482-4a33-8a33-e5893bfbec68
+# ╟─4fe2082b-df20-469f-8dc0-02342822da39
+# ╟─f4571420-b25f-40ac-9ebf-8e89c916b27f
+# ╟─e460f387-d7b3-4bd5-a01b-2ce34d69baf9
+# ╟─a81fc039-0e67-4d52-bf9e-852532b4f5d7
+# ╟─f24e58f5-18f9-42a3-b0b3-acd4f215297f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
