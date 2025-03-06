@@ -4,153 +4,334 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ a0afb5ac-e1b6-11ef-2bec-15420f945e9b
-using DifferentialEquations, Optim
+# ╔═╡ 152e94cd-96c5-4f3c-9a83-f75599ca9b82
+using PlutoUI, DataFrames, CSV, Plots , Optim , DifferentialEquations, ForwardDiff
 
-# ╔═╡ 6efe264e-027a-49a4-b804-9c0d85f945b3
-using LinearAlgebra
-
-# ╔═╡ 69a33ad6-5f82-4fd0-b3c4-401d68f59dbd
-using Plots
-
-# ╔═╡ e9293b85-631d-4676-ae47-1ceb43775f2b
+# ╔═╡ 92fa1010-ed46-11ef-1d61-cd3c8f06cc78
 md"""
-Consideramos el modelo
+# **Proyecto: Modelado del Bienestar Urbano en Bogotá**
 
-$$\frac{dP}{dt} = B(t) - M(t) + I(t),$$
+**Autor:** Luis Gomez, Simon Ramos , Tomas Rodrıguez  
 
-donde
+**Materia:** Modelos Matemáticos  
 
-$$B(t)=b_0P(t), \quad M(t)=m_0P(t), \quad I(t)=i_0P(t).$$
+**Fecha:** Febrero 2025  
 
-Para este caso en particular, la solución analítica es:
+**Notebook en Julia con Pluto.jl**  
 
-$$P(t) = P(0) \cdot e^{(b_0-m_0+i_0)t}.$$
+## **Introducción**
+Este notebook tiene como objetivo desarrollar un modelo matemático que permita analizar el bienestar urbano en la ciudad de Bogotá. Se utilizarán datos históricos y ecuaciones diferenciales para modelar la evolución de variables clave relacionadas con infraestructura, servicios públicos y calidad de vivienda. Además, se implementará un análisis estadístico preliminar para identificar tendencias y correlaciones que puedan ayudar en la toma de decisiones urbanísticas.
+
+El proyecto está estructurado en distintas fases:
+
+## **Fase 1: Diseño y Planificación**
+### **Objetivo:**
+Desarrollar un modelo matemático para analizar el bienestar urbano en Bogotá, tomando en cuenta factores clave que influyen en la calidad de vida de sus habitantes.
+
+### **Variables Clave:**
+- **Inversión en infraestructura**: Recursos destinados a mejorar la infraestructura urbana.
+- **Cobertura de servicios públicos**: Acceso de la población a agua potable, electricidad e internet.
+- **Calidad de vivienda**: Condiciones habitacionales y acceso a vivienda digna.
+
+## **Fase 2: Recopilación y Análisis de Datos**
+### **Fuentes de Datos:**
+- **DANE**: Datos demográficos y de vivienda.
+- **Planeación Distrital**: Información sobre infraestructura urbana.
+- **Secretaría de Hacienda**: Datos de inversión pública en Bogotá.
+
+### **Estructura de Datos:**
+Se trabajará con datos históricos desde el año 2000 hasta el 2020, estructurados en tablas con información sobre inversión en infraestructura, cobertura de servicios y calidad de vivienda.
+
+## **Fase 3: Análisis Estadístico Preliminar**
+- Identificación de tendencias en inversión, calidad de servicios y vivienda.
+- Exploración de relaciones entre variables para evaluar su impacto en el bienestar urbano.
 """
 
-# ╔═╡ 653a764a-5f99-43b7-ac35-33a87da81b57
-# Modelo de crecimiento poblacional
-function modeloPop(du, u, par, t)
-  P = u[1]
-  b0, m0, i0 = par
-  du[1] = (b0 - m0 + i0) * P
-end
-
-# ╔═╡ f5064490-5c90-4166-a8d5-c816941c26aa
-# Función que calcula el residuo (error) entre el modelo y los datos observados
-function residuoPop(par, pop_obs, tiempo)
-  P0 = pop_obs[1]
-  u0 = [P0]
-  tspan = (tiempo[1], tiempo[end])
-  prob = ODEProblem(modeloPop, u0, tspan, par)
-  sol = solve(prob, saveat=tiempo)
-  # Extraemos la población modelada en cada instante de tiempo
-  pop_model = [sol(t)[1] for t in tiempo]
-  res = pop_obs .- pop_model
-  return norm(res)
-end
-
-# ╔═╡ 8bdf1282-ae7a-48c2-b731-aa6ddac3b662
-# Datos de población y tiempo (años)
-# Por ejemplo, usando los datos de la tabla:
-años = [1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989,
-        1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-        2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-        2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
-        2020, 2021, 2022, 2023, 2024]
-
-# ╔═╡ 3352a50c-a92e-49dd-926c-213d5d42901e
-poblacion = [3753117.0, 3876219.0, 4000258.0, 4125066.0, 4250881.0, 4376707.0,
-             4503632.0, 4629733.0, 4755662.0, 4882163.0, 5009197.0, 5135929.0,
-             5263300.0, 5390988.0, 5518215.0, 5645134.0, 5771303.0, 5894809.0,
-             6017421.0, 6137769.0, 6255614.0, 6370718.0, 6484116.0, 6593050.0,
-             6695901.0, 6790992.0, 6873842.0, 6945389.0, 7009432.0, 7062402.0,
-             7102952.0, 7136774.0, 7169750.0, 7201046.0, 7233450.0, 7268171.0,
-             7304512.0, 7352743.0, 7428317.0, 7615712.0, 7760096.0, 7839641.0,
-             7889727.0, 7923763.0, 7946067.0]
-
-# ╔═╡ 1149f571-4f0b-4f87-8b51-9018c1668387
-# Función a minimizar
-rPop(par) = residuoPop(par, poblacion, años)
-
-# ╔═╡ dcf6a7f7-b5a0-4f6f-acdc-dea2d3a1ae5d
-# Ajuste de parámetros
-# Usamos una conjetura inicial para [b0, m0, i0].
-# Por ejemplo, dado que en 1980 se tenía:
-#   natalidad ≈ 0.0254, mortalidad ≈ 0.0048, migración ≈ 0.0121,
-# podríamos iniciar con esos valores.
-par_inicial = [0.0254, 0.0048, 0.0121]
-
-# ╔═╡ 11c0c2e7-0dc6-4742-bda5-709d4f6ad597
-opt = Optim.optimize(rPop, par_inicial, NelderMead())
-
-# ╔═╡ 50ec5f65-f938-4a58-970f-3378ae0535c1
-par_est = opt.minimizer
-
-# ╔═╡ cce0ffdd-3021-455e-9e3e-e581c4d00f1d
+# ╔═╡ 3cad062c-907f-45f5-8a62-bb4b290f408b
 begin
-	println("Parámetros estimados:")
-	println("b0 = ", par_est[1])
-	println("m0 = ", par_est[2])
-	println("i0 = ", par_est[3])
+# Cargar datos simulados desde CSV (usar rutas locales si es necesario)
+inversion_infra = CSV.read("inversion_infraestructura.csv", DataFrame)
+servicios_pub = CSV.read("servicios_publicos.csv", DataFrame)
+calidad_viv = CSV.read("calidad_vivienda.csv", DataFrame)
+datos_integrados = CSV.read("datos_integrados.csv", DataFrame)
 end
 
-# ╔═╡ 3e551ff9-85c0-4561-bd7d-22bb5b2ab02f
+# ╔═╡ 898c9f7a-bc42-4c1e-afc9-630bd0eae97c
 begin
-	# Resolver la ecuación diferencial con los parámetros óptimos
-	P0 = poblacion[1]
-	u0 = [P0]
-	tspan = (años[1], años[end])
-	prob = ODEProblem(modeloPop, u0, tspan, par_est)
-	sol = solve(prob, saveat=años)
+# Gráfico 1: Inversión en Infraestructura vs Población
+plot(inversion_infra.Año, inversion_infra."Inversión en Infraestructura (COP)" ./ 1e9, label="Inversión Infraestructura (B COP)", xlabel="Año", ylabel="Valor", title="Inversión en Infraestructura y Población", lw=2)
+plot!(inversion_infra.Año, inversion_infra."Población Total" ./ 1e6, label="Población Total (millones)", lw=2)
 end
 
-# ╔═╡ a915848f-164d-46d6-a4b2-0009ed064d8f
+# ╔═╡ 962e7bc8-b6e0-4090-8f1e-2a42da3312c2
 begin
-	# Graficar
-	plot(años, poblacion, label="Población Observada", marker=:o, color=:blue)
-	plot!(años, [sol(t)[1] for t in años], label="Población Modelada", linestyle=:dash, color=:red)
-	xlabel!("Año")
-	ylabel!("Población")
-	title!("Ajuste del Modelo de Crecimiento Poblacional")
+# Gráfico 2: Cobertura de Servicios Públicos
+plot(servicios_pub.Año, servicios_pub."Cobertura Agua (%)", label="Cobertura Agua (%)", lw=2)
+plot!(servicios_pub.Año, servicios_pub."Cobertura Energía (%)", label="Cobertura Energía (%)", lw=2)
+plot!(servicios_pub.Año, servicios_pub."Cobertura Internet (%)", label="Cobertura Internet (%)", lw=2, title="Cobertura de Servicios Públicos")
 end
 
-# ╔═╡ d6a86c23-05af-4b8c-af56-79f3ac881166
-
-
-# ╔═╡ 97e9d08b-d520-4735-b05a-4be7701f2be2
+# ╔═╡ ca3a5596-fcfb-4553-a4a6-055c8fe06e8c
 begin
+# Gráfico 3: Déficit Habitacional y Viviendas en Buen Estado
+plot(calidad_viv.Año, calidad_viv."Déficit Habitacional (%)", label="Déficit Habitacional (%)", lw=2, linestyle=:dash, color=:red)
+plot!(calidad_viv.Año, calidad_viv."Viviendas en Buen Estado (%)", label="Viviendas en Buen Estado (%)", lw=2, linestyle=:solid, color=:green, title="Déficit Habitacional y Viviendas en Buen Estado")
+end
+
+# ╔═╡ ca389936-635f-40e5-a52d-ab18eaf11308
+begin
+#Gráfico 4: Relación entre Inversión en Infraestructura y Calidad de Vivienda
+scatter(datos_integrados."Inversión en Infraestructura (COP)" ./ 1e9, datos_integrados."Viviendas en Buen Estado (%)", xlabel="Inversión en Infraestructura (B COP)", ylabel="Viviendas en Buen Estado (%)", title="Relación entre Inversión en Infraestructura y Calidad de Vivienda", alpha=0.7, color=:blue)
+
+end
+
+# ╔═╡ d8c98714-9233-4207-b146-47e0d4bb1a7c
+md""" ## Ajuste de Parámetros y Validación del Modelo
+En esta fase, ajustaremos los parámetros del modelo matemático utilizando métodos de optimización y regresión. Se realizarán pruebas con los datos disponibles para validar la precisión del modelo y mejorar sus predicciones.
+
+### Pasos a seguir:
+1. **Definir ecuaciones diferenciales** para modelar la evolución de las variables clave.
+2. **Ajustar parámetros del modelo** utilizando técnicas como mínimos cuadrados y optimización numérica.
+3. **Validar el modelo** comparando las predicciones con los datos históricos.
+4. **Analizar la sensibilidad del modelo** para determinar qué variables tienen mayor impacto en los resultados.
+"""
+
+# ╔═╡ 850d647e-7d12-4c3b-81c0-84517e454dd7
+md"""
+# **Modelado Matemático del Bienestar Urbano**
+
+Para modelar la evolución del bienestar urbano en Bogotá, se establecen ecuaciones diferenciales que representan la dinámica de inversión en infraestructura, bienestar y calidad de la vivienda.
+
+## **Definición del Modelo**
+En esta fase, implementaremos los distintos componentes del modelo matemático basado en ecuaciones diferenciales. El modelo abarca la población, el territorio y el bienestar urbano, con un enfoque en la interacción entre estos factores.
+
+### **Modelo de Población**
+La evolución de la población tiene en cuenta la natalidad, mortalidad e inmigración:
+
+$$\dfrac{dP}{dt} = r P \left(1 - \frac{P}{K} \right) + I$$
+
+Donde:
+
+ $\cdot$ $P(t)$ es la población total en el tiempo  $t$.
+
+ $\cdot$ $( r )$ es la tasa de crecimiento poblacional.
+
+ $\cdot$ $( K )$  es la capacidad de carga urbana.
+
+ $\cdot$ $( I )$ es la inmigración neta.
+
+### **Modelo de Territorio**
+La expansión urbana depende del crecimiento poblacional y del uso del suelo:
+
+$$\frac{dU}{dt} = \alpha P + \beta V - \gamma E$$
+
+Donde:
+
+ $\cdot$ $U(t)$ es la huella urbana.
+
+ $\cdot$ $V(t)$ es la demanda de vivienda.
+
+ $\cdot$ $E(t)$ es el área protegida o la estructura ecológica.
+
+### **Modelo de Bienestar Urbano**
+Este modelo relaciona la inversión en infraestructura, la cobertura de servicios y la calidad de la vivienda:
+
+$$\frac{dS}{dt} = \theta T - \zeta P$$
+
+$$\frac{dH}{dt} = \xi S - \lambda P$$
+
+Donde:
+
+ $\cdot$ $S(t)$ representa los servicios públicos.
+
+ $\cdot$ $T(t)$ es la inversión en infraestructura.
+
+ $\cdot$ $H(t)$ es la calidad de la vivienda.
+
+Estos modelos se integrarán en un sistema de ecuaciones diferenciales para analizar la dinámica del bienestar urbano en Bogotá.
+"""
+
+
+# ╔═╡ e54576d9-f01f-4176-aef8-b7da5d6d425b
 	# Definir ecuaciones diferenciales para el modelo
-function modelo_bienestar(dy, y, p, t)
-    α, β, γ = p
-    dy[1] = α * y[1] - β * y[2]  # Relación inversión-infraestructura vs bienestar
-    dy[2] = β * y[1] - γ * y[2]  # Relación bienestar vs calidad de vivienda
-end
+	function modelo_bienestar(dy, y, p, t)
+    println("Evaluando modelo_bienestar en t = ", t)
+    println("Valores de entrada: y = ", y, ", p = ", p)
 
+    α, β, γ = p
+    dy[1] = α * y[1] - β * y[2]
+    dy[2] = β * y[1] - γ * y[2]
+
+    println("Valores calculados: dy = ", dy)
+	end
+
+
+# ╔═╡ 3c76736a-c9cd-40e6-9061-4df0c01db56c
+
+
+# ╔═╡ 0b896d30-e9b3-474b-85ed-378776dbf6cc
 # Parámetros iniciales
 p0 = [0.01, 0.02, 0.03]
-end
 
-# ╔═╡ d8475ba9-5737-4912-9458-4db1fc5dace8
+# ╔═╡ f0e8de2e-55c4-4c4d-9dcb-7c0fcac9590f
 # Función de error para optimización
 function error_modelo(p)
-    y0 = [inversion_infra[1, "Inversión en Infraestructura (COP)"], datos_integrados[1, "Viviendas en Buen Estado (%)"]]
+    y0 = [inversion_infra[1, "Inversión en Infraestructura (COP)"], 
+          datos_integrados[1, "Viviendas en Buen Estado (%)"]]
     tspan = (0.0, 20.0)
+    
     prob = ODEProblem(modelo_bienestar, y0, tspan, p)
     sol = solve(prob, Tsit5())
-    return sum(abs.(sol .- datos_integrados[!, "Viviendas en Buen Estado (%)"]))
+
+	println("Parámetros iniciales p0:", p0)
+	println("Condiciones iniciales y0:", [inversion_infra[1, "Inversión en Infraestructura (COP)"], 
+                                     datos_integrados[1, "Viviendas en Buen Estado 		(%)"]])
+
+
+    # Verificar si la solución tiene valores no definidos
+    if any(isnan, sol.u) || any(isinf, sol.u)
+        return Inf  # Penalizar si hay valores NaN o Inf
+    end
+    
+    # Interpolar la solución del modelo para compararla con los datos disponibles
+    tiempo_datos = range(tspan[1], tspan[2], length=length(datos_integrados.Año))
+    sol_interp = [sol(t)[2] for t in tiempo_datos]  # Tomamos la segunda variable (bienestar)
+
+    return sum(abs.(sol_interp .- datos_integrados[!, "Viviendas en Buen Estado (%)"]))
 end
 
-# ╔═╡ 5edf98c8-847c-4b24-b84c-52f7d8d09398
 
+# ╔═╡ 6c9fc3c2-cd57-45be-8ae5-ac878ea645ff
+begin
+	# Definir las opciones correctamente
+options = Optim.Options(iterations=1000)
+end
+
+# ╔═╡ 7d2e15a9-a57c-4d71-b32b-e67619d66bf1
+begin
+function error_modelo_debug(p)
+    println("Probando con parámetros p: ", p)
+    
+    try
+        y0 = [inversion_infra[1, "Inversión en Infraestructura (COP)"], 
+              datos_integrados[1, "Viviendas en Buen Estado (%)"]]
+        tspan = (0.0, 20.0)
+
+        println("Valores iniciales y0: ", y0)
+        
+        prob = ODEProblem(modelo_bienestar, y0, tspan, p)
+        sol = solve(prob, Tsit5())
+
+        # Verificar si la solución tiene valores NaN o Inf
+        if any(x -> any(isnan, x), sol.u) || any(x -> any(isinf, x), sol.u)
+            println("Se encontraron NaN o Inf en la solución del ODE")
+            return Inf
+        end
+
+        # Depuración de `sol(t)`
+        tiempo_datos = range(tspan[1], tspan[2], length=length(datos_integrados.Año))
+        sol_interp = []
+        for t in tiempo_datos
+            valor_t = sol(t)
+            println("Valor en t = ", t, " -> ", valor_t)
+            push!(sol_interp, valor_t[2])  # Extraemos la segunda variable
+        end
+
+        error_total = sum(abs.(sol_interp .- datos_integrados[!, "Viviendas en Buen Estado (%)"]))
+        println("Error calculado: ", error_total)
+
+        return error_total
+
+    catch e
+        println("Error en error_modelo: ", e)
+        println("Stacktrace:")
+        println(stacktrace(catch_backtrace()))
+        return Inf
+    end
+end
+
+# Ejecuta la prueba
+println("Prueba error_modelo con p0: ", error_modelo_debug(p0))
+end
+
+# ╔═╡ af4b8b09-0596-4fd9-9a20-a6a4569884ed
+try
+    println("Prueba error_modelo con p0: ", error_modelo(p0))
+catch e
+    println("Error en error_modelo: ", e)
+    println("Stacktrace:")
+    println(stacktrace(catch_backtrace()))
+end
+
+
+# ╔═╡ c3ccd8e9-75eb-4f40-b67a-66487aaf80b6
+begin
+# Ejecutar optimización con Nelder-Mead
+result = optimize(error_modelo_debug, p0, NelderMead())
+
+end
+
+# ╔═╡ dc6b9bad-e437-4aa6-8eaa-d634bb36a2c6
+p_opt = Optim.minimizer(result)
+
+# ╔═╡ 62a56ef5-694f-42fe-9325-013a6847bf84
+begin
+	# Gráfico de validación
+	plot(datos_integrados.Año, datos_integrados."Viviendas en Buen Estado (%)", label="Datos Reales", lw=2)
+	plot!(datos_integrados.Año, p_opt[1] .* datos_integrados.Año .+ p_opt[2], 
+	label="Modelo Ajustado", linestyle=:dash, lw=2, color=:red)
+end
+
+# ╔═╡ e282a24e-bb12-48a3-b8dc-c2e1b406bfce
+"""**Resultados:**
+- Parámetros óptimos ajustados: $(p_opt)
+- Validación del modelo con datos históricos.
+"""
+
+# ╔═╡ 3dc09f50-9b03-44cc-bb68-5abe24973d35
+begin
+	
+# Definir diferentes escalas para probar
+	y0 = [inversion_infra[1, "Inversión en Infraestructura (COP)"], 
+              datos_integrados[1, "Viviendas en Buen Estado (%)"]]
+escalas = Dict(
+    "Original" => (y0, p0),
+    "Reducida" => ([y0[1] / 10, y0[2] / 10], [p0[1] / 10, p0[2] / 10, p0[3] / 10]),
+    "Aumentada" => ([y0[1] * 10, y0[2] * 10], [p0[1] * 10, p0[2] * 10, p0[3] * 10])
+)
+
+for (nombre, (y0_mod, p0_mod)) in escalas
+    println("Probando con escala: ", nombre)
+
+    # Definir el problema ODE con la escala modificada
+    prob_test = ODEProblem(modelo_bienestar, y0_mod, (0.0, 20.0), p0_mod)
+    sol_test = solve(prob_test, Tsit5())
+
+    # Graficar los resultados
+    plot(sol_test, title="Simulación con Escala: $nombre", label=["Población" "Bienestar"])
+end
+
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+
+[compat]
+CSV = "~0.10.15"
+DataFrames = "~1.7.0"
+DifferentialEquations = "~7.13.0"
+ForwardDiff = "~0.10.38"
+Optim = "~1.11.0"
+Plots = "~1.40.9"
+PlutoUI = "~0.7.60"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -159,12 +340,18 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "445b590b84e0dead1d52594874ecb848b43efc09"
+project_hash = "1916a9ccd1c55f63965bf42031f2e4b673b8e222"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
 uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 version = "0.2.7"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.3.2"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -282,6 +469,12 @@ git-tree-sha1 = "5a97e67919535d6841172016c9530fd69494e5ec"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 version = "0.2.6"
 
+[[deps.CSV]]
+deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
+git-tree-sha1 = "deddd8725e5e1cc49ee205a1964256043720a6c3"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.10.15"
+
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
 git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
@@ -308,21 +501,15 @@ version = "3.29.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "c7acce7a7e1078a20a285211dd73cd3941a871d6"
+git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.12.0"
-
-    [deps.ColorTypes.extensions]
-    StyledStringsExt = "StyledStrings"
-
-    [deps.ColorTypes.weakdeps]
-    StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+version = "0.11.5"
 
 [[deps.ColorVectorSpace]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
+git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.11.0"
+version = "0.10.0"
 weakdeps = ["SpecialFunctions"]
 
     [deps.ColorVectorSpace.extensions]
@@ -397,10 +584,21 @@ git-tree-sha1 = "fcbb72b032692610bfbdb15018ac16a36cf2e406"
 uuid = "adafc99b-e345-5852-983c-f28acb93d879"
 version = "0.3.1"
 
+[[deps.Crayons]]
+git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
+uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
+version = "4.1.1"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.16.0"
+
+[[deps.DataFrames]]
+deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "fb61b4812c49343d7ef0b533ba982c46021938a6"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "1.7.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -625,6 +823,17 @@ git-tree-sha1 = "cbf5edddb61a43669710cbc2241bc08b36d9e660"
 uuid = "29a986be-02c6-4525-aec4-84b980013641"
 version = "2.0.4"
 
+[[deps.FilePathsBase]]
+deps = ["Compat", "Dates"]
+git-tree-sha1 = "2ec417fc319faa2d768621085cc1feebbdee686b"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.9.23"
+weakdeps = ["Mmap", "Test"]
+
+    [deps.FilePathsBase.extensions]
+    FilePathsBaseMmapExt = "Mmap"
+    FilePathsBaseTestExt = "Test"
+
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
@@ -799,6 +1008,24 @@ git-tree-sha1 = "2bd56245074fab4015b9174f24ceba8293209053"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.27"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.5"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.5"
+
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -809,6 +1036,19 @@ git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.5"
 
+[[deps.InlineStrings]]
+git-tree-sha1 = "45521d31238e87ee9f9732561bfee12d4eebd52d"
+uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
+version = "1.4.2"
+
+    [deps.InlineStrings.extensions]
+    ArrowTypesExt = "ArrowTypes"
+    ParsersExt = "Parsers"
+
+    [deps.InlineStrings.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+    Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
+
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "0f14a5456bdc6b9731a5682f439a672750a09e48"
@@ -818,6 +1058,11 @@ version = "2025.0.4+0"
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[deps.InvertedIndices]]
+git-tree-sha1 = "6da3c4316095de0f5ee2ebd875df8721e7e0bdbe"
+uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
+version = "1.3.1"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "e2222959fbc6c19554dc15174c81bf7bf3aa691c"
@@ -871,9 +1116,9 @@ version = "0.4.1"
 
 [[deps.Krylov]]
 deps = ["LinearAlgebra", "Printf", "SparseArrays"]
-git-tree-sha1 = "d1c697c53d3041a371c1da21305d0dc9259dbc8a"
+git-tree-sha1 = "b29d37ce30fa401a4563b18880ab91f979a29734"
 uuid = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
-version = "0.9.9"
+version = "0.9.10"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1106,6 +1351,11 @@ version = "0.12.171"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -1384,6 +1634,12 @@ version = "1.40.9"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.60"
+
 [[deps.PoissonRandom]]
 deps = ["Random"]
 git-tree-sha1 = "a0f1159c33f846aa77c3f30ebbc69795e5327152"
@@ -1401,6 +1657,12 @@ deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "T
 git-tree-sha1 = "645bed98cd47f72f67316fd42fc47dee771aefcd"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.2.2"
+
+[[deps.PooledArrays]]
+deps = ["DataAPI", "Future"]
+git-tree-sha1 = "36d8b4b899628fb92c2749eb488d884a926614d3"
+uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
+version = "1.4.3"
 
 [[deps.PositiveFactorizations]]
 deps = ["LinearAlgebra"]
@@ -1431,6 +1693,12 @@ deps = ["TOML"]
 git-tree-sha1 = "9306f6085165d270f7e3db02af26a400d580f5c6"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.4.3"
+
+[[deps.PrettyTables]]
+deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "Reexport", "StringManipulation", "Tables"]
+git-tree-sha1 = "66b20dd35966a748321d3b2537c4584cf40387c7"
+uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+version = "2.3.2"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -1626,6 +1894,12 @@ git-tree-sha1 = "3bac05bc7e74a75fd9cba4295cde4045d9fe2386"
 uuid = "6c6a2e73-6563-6170-7368-637461726353"
 version = "1.2.1"
 
+[[deps.SentinelArrays]]
+deps = ["Dates", "Random"]
+git-tree-sha1 = "712fb0231ee6f9120e005ccd56297abbc053e7e0"
+uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
+version = "1.4.8"
+
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
@@ -1819,6 +2093,12 @@ git-tree-sha1 = "f35f6ab602df8413a50c4a25ca14de821e8605fb"
 uuid = "7792a7ef-975c-4747-a70f-980b88e8d1da"
 version = "0.5.7"
 
+[[deps.StringManipulation]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "a04cabe79c5f01f4d723cc6704070ada0b9d46d5"
+uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
+version = "0.3.4"
+
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -1982,6 +2262,17 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "5db3e9d307d32baba7067b13fc7b5aa6edd4a19a"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.36.0+0"
+
+[[deps.WeakRefStrings]]
+deps = ["DataAPI", "InlineStrings", "Parsers"]
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "1.4.2"
+
+[[deps.WorkerUtilities]]
+git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
+uuid = "76eceee3-57b5-4d4a-8e66-0e911cebbf60"
+version = "1.6.1"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
@@ -2269,24 +2560,26 @@ version = "1.4.1+2"
 """
 
 # ╔═╡ Cell order:
-# ╟─e9293b85-631d-4676-ae47-1ceb43775f2b
-# ╠═a0afb5ac-e1b6-11ef-2bec-15420f945e9b
-# ╠═6efe264e-027a-49a4-b804-9c0d85f945b3
-# ╠═69a33ad6-5f82-4fd0-b3c4-401d68f59dbd
-# ╠═653a764a-5f99-43b7-ac35-33a87da81b57
-# ╠═f5064490-5c90-4166-a8d5-c816941c26aa
-# ╠═1149f571-4f0b-4f87-8b51-9018c1668387
-# ╠═8bdf1282-ae7a-48c2-b731-aa6ddac3b662
-# ╠═3352a50c-a92e-49dd-926c-213d5d42901e
-# ╠═dcf6a7f7-b5a0-4f6f-acdc-dea2d3a1ae5d
-# ╠═11c0c2e7-0dc6-4742-bda5-709d4f6ad597
-# ╠═50ec5f65-f938-4a58-970f-3378ae0535c1
-# ╠═cce0ffdd-3021-455e-9e3e-e581c4d00f1d
-# ╠═3e551ff9-85c0-4561-bd7d-22bb5b2ab02f
-# ╠═a915848f-164d-46d6-a4b2-0009ed064d8f
-# ╠═d6a86c23-05af-4b8c-af56-79f3ac881166
-# ╠═97e9d08b-d520-4735-b05a-4be7701f2be2
-# ╠═d8475ba9-5737-4912-9458-4db1fc5dace8
-# ╠═5edf98c8-847c-4b24-b84c-52f7d8d09398
+# ╠═152e94cd-96c5-4f3c-9a83-f75599ca9b82
+# ╟─92fa1010-ed46-11ef-1d61-cd3c8f06cc78
+# ╠═3cad062c-907f-45f5-8a62-bb4b290f408b
+# ╠═898c9f7a-bc42-4c1e-afc9-630bd0eae97c
+# ╠═962e7bc8-b6e0-4090-8f1e-2a42da3312c2
+# ╠═ca3a5596-fcfb-4553-a4a6-055c8fe06e8c
+# ╠═ca389936-635f-40e5-a52d-ab18eaf11308
+# ╟─d8c98714-9233-4207-b146-47e0d4bb1a7c
+# ╟─850d647e-7d12-4c3b-81c0-84517e454dd7
+# ╠═e54576d9-f01f-4176-aef8-b7da5d6d425b
+# ╠═3c76736a-c9cd-40e6-9061-4df0c01db56c
+# ╠═0b896d30-e9b3-474b-85ed-378776dbf6cc
+# ╠═f0e8de2e-55c4-4c4d-9dcb-7c0fcac9590f
+# ╠═6c9fc3c2-cd57-45be-8ae5-ac878ea645ff
+# ╠═7d2e15a9-a57c-4d71-b32b-e67619d66bf1
+# ╠═af4b8b09-0596-4fd9-9a20-a6a4569884ed
+# ╠═c3ccd8e9-75eb-4f40-b67a-66487aaf80b6
+# ╠═dc6b9bad-e437-4aa6-8eaa-d634bb36a2c6
+# ╠═62a56ef5-694f-42fe-9325-013a6847bf84
+# ╠═e282a24e-bb12-48a3-b8dc-c2e1b406bfce
+# ╠═3dc09f50-9b03-44cc-bb68-5abe24973d35
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
