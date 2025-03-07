@@ -13,7 +13,7 @@ begin
 end
 
 # ╔═╡ c0d46187-970e-4f6c-9f1f-1ad40a08a01a
-using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames
+using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames, Interpolations
 
 # ╔═╡ 984a3f2b-ff68-4821-be19-c0f53314583c
 html"""
@@ -113,49 +113,96 @@ md"""
 - .$D(t)$: Área disponible $-$no hurbanizada$-$: número de hectáreas disponibles para hurbanizar en el tiempo $t$.
 
 - .$N(t)$: Suelo en desarrollo: número de hectáreas sobre las que se está expandiendo la ciudad en el tiempo $t$ (generalmente en las periférias de la ciudad).
+
+Hay dos alternativas principales para este modelo:
+"""
+
+# ╔═╡ ac57d4c7-90a7-4ee1-9918-c5e3e42646d4
+html"""
+<h4> Modelo intuitivo:</h4>
 """
 
 # ╔═╡ 69f5485b-f15a-4cd2-a66f-0df8eec38dfb
 md"""
-Hay dos alternativas principales para este modelo:
+###
 
-
-1.Modelo intuitivo en el que la expansión de la huella urbana es proporcional al crecimiento poblacional y a la demanda de viviendas, pero limitada por la estructura ecológica (área protegida):
-
+Modelo intuitivo en el que la expansión de la huella urbana es proporcional al crecimiento poblacional y a la demanda de viviendas, pero limitada por la estructura ecológica (área protegida):
 
 $$\frac{dU}{dt} = \alpha P(t) + \beta V(t) - \gamma E(t);$$
 
-
 la estructura ecológica disminuye debido a la expansión de la huella urbana:
 
-
-$$\frac{dE}{dt}=-\delta U(t); $$
-
+$$\frac{dE}{dt} = -\delta U(t);$$
 
 la demanda de viviendas, asumimos depende del promedio de personas por hogar $\kappa$:
 
+$$\frac{dV}{dt} = \frac{1}{\kappa}\frac{dP}{dt}$$
 
-$$\frac{dV}{dt} = \frac{1}{\kappa}\frac{dP}{dt};$$
-
-
-y la superficie del suelo urbano disponible disminuirá proporcionalmente con la expasión de la huella urbana:
+y la superficie del suelo urbano disponible disminuirá proporcionalmente con la expansión de la huella urbana:
 
 $$\frac{dD}{dt} = -\nu \frac{dU}{dt}.$$
+
+Notemos que este sistema puede reducirse. En particular, en (4) es evidente que $D(t)$ está completamente determinado por $U(t)$ y no aporta información a la dinámica del sistema.
+
+Un proceso análogo sucede en (3), pues si se integra a ambos lados y se reemplaza en (1) obtenemos una nueva expresión para $\frac{dU}{dt}$ que depende únicamente de $P(t)$ y $E(t)$. Y, al igual que antes, podría eliminarse a (3). En resumen, el sistema reducido es:
+
+$$\frac{dU}{dt} = \bar\alpha\; P(t) - \gamma E(t) + \bar\beta$$
+
+$$\frac{dE}{dt} = -\delta U(t)$$
+
+Donde $\bar\alpha = \alpha + \frac{\beta}{\kappa}$ y $\bar\beta = \beta C_1$ con $C_1$ una constante de integración.
+
+$$\frac{dP}{dt} = \rho P(t) \;( 1- \frac{P(t)}{k_1U(t) - k_2E(t)})$$
+
+con $\rho$ tasa de crecimiento intrínseco y $k_1U(t) + k_2E(t)$ la capacidad de carga que se contribuye por $U(t)$ y se limita por $E(t)$.
 """
 
-# ╔═╡ 5824e211-89e7-48c6-a61e-d29a767c129a
-md"""
-2.Modelo basado en el modelo SIR (epidemiológico) \cite{pap}. Suponemos que es un sistema cerrado, esto es, $D(t) + N(t) + U(t) = C$ para todo $t \geq 0$, donde $C$ es el área total (en este caso de Bogotá).
+# ╔═╡ 2d16f761-a67c-401a-af9b-8fb7e045a47a
+html"""
+<h4>Modelo SIR</h4>
+"""
 
-$$\frac{dD}{dt} = -\alpha D(t)N(t),$$
-$$\frac{dN}{dt} = \alpha D(t)N(t)-\gamma N(t),$$
-$$\frac{dU}{dt} = \gamma N(t),$$
+# ╔═╡ 9b9b6f1e-e816-436d-8353-e32de81ce39c
+md"""
+### 
+
+Modelo basado en el modelo SIR (epidemiológico). Suponemos que es un sistema cerrado, esto es, $D(t) + N(t) + U(t) = C$ para todo $t \geq 0$, donde $C$ es el área total (en este caso de Bogotá).
+
+$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
+
+$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
+
+$$\frac{dU}{dt} = \gamma N(t)$$
+
 donde $\alpha, \gamma > 0$.
+
+No obstante, dado que $U(t)$ no aparece en ninguna de las ecuaciones del sistema, vemos que esta puede determinarse a partir de $N(t)$ y no aporta en nada a la dinámica del sistema. Por tanto, este puede reducirse a:
+
+$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
+
+$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
+
+
+Para este componente hay datos de una considerable cantidad de años (separados por intervalos de tiempo) para la huella urbana, área protegida y la demanda de viviendas. Del suelo en desarrollo no encontramos datos por lo que fue necesario replantear el modelo para que solo considere los compartimentos $D$ y $U$.
 """
 
 # ╔═╡ 6bd2a1f9-cf3a-4f3a-b437-fd2460998400
 md"""
 Para este componente hay datos de una considerable cantidad de años (separados por intervalos de tiempo) para la huella hurbana, área protegida y la demanda de viviendas [4, 6, 2]. Del suelo en desarrollo no encontramos datos por lo que puede ser más práctico un modelo que solo considere los compartimentos $D$ y $U$, en [7] también se presenta esta simplificación.
+"""
+
+# ╔═╡ 7d356bfa-9653-479c-9882-ee24a977c887
+md"""
+
+Esta reescritura del modelo se consigue al reemplazar $N(t) = \frac{1}{\gamma} \frac{dU}{dt}$ en las ecuaciones de $\frac{dN}{dt}$ y $\frac{dD}{dt}$. Esta interpretación es la usada para estimar los parámetros del modelo.
+
+
+$$\frac{dD}{dt} = -\frac{\alpha}{\gamma}D(t) \frac{dU}{dt}$$
+
+$$\frac{d^2U}{dt^2} = (\alpha D(t) - \gamma) \frac{dU}{dt}$$
+
+
+
 """
 
 # ╔═╡ 06fbabc4-86ec-4a96-b21b-f8388642eb80
@@ -297,11 +344,6 @@ Ahora cargamos el dataset de territorio:
 # ╔═╡ e0cf5bb3-a644-4223-aa87-a0e0b921f13a
 df_territorio = CSV.read("./datos/datos_territorio.csv", DataFrame)
 
-# ╔═╡ 74e9ff7c-423f-48a6-8418-20a3178564ef
-md"""
-Implementamos la función para calcular el error:
-"""
-
 # ╔═╡ 35438e3a-7306-449b-a176-88a33ab3d8b9
 html"""
 <h4>Modelo de población (logístico)</h4>
@@ -312,14 +354,152 @@ md"""
 Consideraremos el modelo logístico con población:
 
 $$\frac{dP}{dt}= rP(t) \left(1 - \frac{P(t)}{K}\right) + I(t),$$
+$$\frac{dI}{dt} = f(t)$$
 
 donde $r$ es la tasa de crecimiento y $K$ la capacidad de carga.
 """
 
-# ╔═╡ 8f2f03e2-9989-4230-b711-760c9a437268
+# ╔═╡ f087c6ec-f648-49c3-9f86-940ad290abae
 md"""
-Podemos implementarlo de la siguiente manera:
+Para realizar un análisis de los diagramas de fase es encesario obtener una ecuación para la derivada de $I(t)$. En este caso, usando los datos observados para la migración, haremos una aproximación a esta usando interpolación lineal. No obstante, por el momento la denotaremos mediante la expresión $\frac{dI}{dt} = f(t)$
 """
+
+# ╔═╡ e8c662b4-0f54-46f0-b61c-cb67b7f55f6f
+html"""
+<h4>Análisis de diagramas de fase</h4>
+"""
+
+# ╔═╡ 7cce6391-8d80-4786-8bad-d1dd5658846c
+md"""
+#### Puntos fijos
+
+En este caso no tiene sentido asumir que I(t) = 0, dada que la migración en el territorio no es nula. Por tanto, debemos usar la fórmula cuadrática para obtener los puntos fijos en función de I
+
+
+$$\frac{dI}{dt} = 0, \; I(t) \neq 0$$
+
+$$P(t) = \frac{K \pm \sqrt{K^2 + \frac{4KI}{r}} }{2}$$
+"""
+
+# ╔═╡ 9956c3ef-51a4-4260-85c7-9e63adae9b9e
+md"""
+#### Jacobiano
+
+Para el jacobiano tenemos que:
+
+$$J = 
+\begin{bmatrix}
+\frac{\partial}{\partial P}(\frac{dP}{dt}) & \frac{\partial}{\partial I}(\frac{dP}{dt}) \\
+\frac{\partial}{\partial P}(\frac{dI}{dt}) & \frac{\partial}{\partial I}(\frac{dI}{dt})
+\end{bmatrix}$$
+
+$$J = 
+\begin{bmatrix}
+r(1-\frac{2P(t)}{K}) & 1 \\
+0 & 0
+\end{bmatrix}$$
+
+
+"""
+
+# ╔═╡ 83d199ce-b358-41ca-bf72-8b2662dec7d0
+md"""
+#### Valores y vectores propios
+
+Se debe evaluar el jacobiano en los puntos fijos para posteriormente sacar los valores y vectores propios.
+
+- $(P(t)^*, I(t)^*) = (\frac{K + \sqrt{K^2 + \frac{4KI}{r}} }{2}, I^*):$
+
+$$J = 
+\begin{bmatrix}
+r\sqrt{1+\frac{4I^*}{rK}} & 1 \\
+0 & 0 
+\end{bmatrix}$$
+
+Valores propios:
+
+$$\lambda_1 = 0, \;\; \lambda_2 = r\sqrt{1+\frac{4I^*}{rK}}$$
+
+Vectores propios:
+
+$$\vec{v_1} = 
+\begin{pmatrix}
+1 \\
+- r\sqrt{1+\frac{4I^*}{rK}}
+\end{pmatrix}
+\;\;
+\vec{v_2} = 
+\begin{pmatrix}
+1 \\
+0
+\end{pmatrix}$$
+
+- $(P(t)^*, I(t)^*) = (\frac{K - \sqrt{K^2 + \frac{4KI}{r}} }{2}, I^*):$
+
+$$J = 
+\begin{bmatrix}
+- (r\sqrt{1+\frac{4I^*}{rK}}) & 1 \\
+0 & 0 
+\end{bmatrix}$$
+
+Valores propios:
+
+$$\lambda_1 = 0, \;\; \lambda_2 = -r\sqrt{1+\frac{4I^*}{rK}}$$
+
+Vectores propios:
+
+$$\vec{v_1} = 
+\begin{pmatrix}
+1 \\
+ r\sqrt{1+\frac{4I^*}{rK}}
+\end{pmatrix}
+\;\;
+\vec{v_2} = 
+\begin{pmatrix}
+1 \\
+0
+\end{pmatrix}$$
+
+
+"""
+
+# ╔═╡ 602cf17d-7b1f-40a5-a2a4-e891bb6a5560
+md"""
+#### Análisis
+- $(P(t)^*, I(t)^*) = (\frac{K + \sqrt{K^2 + \frac{4KI}{r}} }{2}, I^*):$
+
+$$\lambda_1 = 0, \;\; \lambda_2 = \pm r\sqrt{1+\frac{4I^*}{rK}}$$
+
+Dado que uno de los valores propios es cero, no hay equililibrios isolados
+
+"""
+
+# ╔═╡ 1e867ef2-5480-44b9-b36a-18ac2a79ddd9
+md"""
+Usando los parametros estimados en la sección siguiente, una aproximación numérica de la derivada $\frac{dI}{dt}$ y apoyándonos en las librerías de Julia, podemos hacer una pequeña visualización de este diagrama de fase
+
+
+"""
+
+# ╔═╡ 1c8b972b-c360-4dd9-b634-f1b77725174f
+migracion = df_poblacion[!, "migración"]
+
+# ╔═╡ 85d4e17f-c268-4f71-929f-37c482c3a873
+poblacion = df_poblacion[!, "población"]
+
+# ╔═╡ 8f2f03e2-9989-4230-b711-760c9a437268
+html"""
+<h4>Implementación del modelo</h4>
+"""
+
+# ╔═╡ 6d57a957-0c0d-4695-8c02-204a5ef305bb
+# Modelo logístico con migración
+function modeloLogistico(du, u, par, t)
+  P = u[1]
+  r, K = par
+  I_t = migracion[Int(round(t))]
+  du[1] = r * P * (1 - P / K) + I_t
+end
 
 # ╔═╡ ba331eb3-1306-419f-b701-d28dbf909849
 md"""
@@ -334,20 +514,51 @@ begin
 	años = t_data
 end
 
-# ╔═╡ f21cf80e-7325-4a95-b3db-1ac151412823
-migracion = df_poblacion[!, "migración"]
+# ╔═╡ 57712785-86ed-4ef6-828b-8a33c7a82799
+begin
+	
+	# Calcular I(t) = migrantes(t) * P(t)
+	I_data = migracion .* poblacion
+	
+	# Aproximar dI/dt usando diferencias finitas
+	dI_dt = diff(I_data) ./ diff(t_data)
+	
+	# Interpolación de dI/dt
 
-# ╔═╡ 6d57a957-0c0d-4695-8c02-204a5ef305bb
-# Modelo logístico con migración
-function modeloLogistico(du, u, par, t)
-  P = u[1]
-  r, K = par
-  I_t = migracion[Int(round(t))]
-  du[1] = r * P * (1 - P / K) + I_t
+	itp_mig = LinearInterpolation(t_data[1:end-1], dI_dt, extrapolation_bc=Line())  # Interpolación lineal
+	
+	# Definir el sistema de EDOs
+	function sistema_log(du, u, p, t)
+	    P, I = u
+	    r, K = p
+	    du[1] = r * P * (1 - P / K) + I  # dP/dt
+	    du[2] = itp_mig(t)  # dI/dt (usando la interpolación)
+	end
+	
+	# Parámetros del modelo
+	# r = 0.061585326110287275 # Tasa de crecimiento
+	# K = 8.514304236741986e6
+  # Capacidad de carga
+	p_mig = [0.061585326110287275, 8.514304236741986e6
+]  # Parámetros
+	
+	# Condiciones iniciales
+	P0_mig = poblacion[1]  # Población inicial
+	I0_mig = I_data[1]  # Migrantes iniciales
+	u0_mig = [P0_mig, I0_mig]
+	
+	# Rango de tiempo
+	tspan_mig = (t_data[1], t_data[end])
+	
+	# Resolver el sistema
+	prob_mig = ODEProblem(sistema_log, u0_mig, tspan_mig, p_mig)
+	sol_mig = solve(prob_mig)
+	
+	# Graficar el diagrama de fase
+	plot(sol_mig, vars=(1, 2), xlabel="P(t)", ylabel="I(t)", 
+	     title="Diagrama de fase población logístico", label="Trayectoria", linecolor=:blue)
+
 end
-
-# ╔═╡ c6f57485-f8fa-49ac-a42a-b44dc4b118ed
-poblacion = df_poblacion[!, "población"]
 
 # ╔═╡ 82dfc6bb-2c49-4f7f-b0c4-a52df4d51531
 # Función de error para optimización
@@ -443,9 +654,76 @@ Para este caso en particular, la solución analítica es:
 $$P(t) = P(0) \cdot e^{(b_0-m_0+i_0)t}.$$
 """
 
-# ╔═╡ 88b6ab95-398f-4239-b372-1d89d9d20931
+# ╔═╡ b414f8e8-7f47-4ac8-9f0d-fd0dde6a20d6
+html"""
+<h4>Análisis de diagramas de fase</h4>
+"""
+
+# ╔═╡ b5ed718c-17c9-4892-b9cd-136dc752600d
 md"""
-Definimos el modelo:
+En este caso, como el sistema 1D, el análisis es mucho más sencillo. El sistema puede reducirse como
+
+$$\frac{dP}{dt} = (b_0 - m_0 + i_0)P(t) = f(P)$$
+
+Por lo que el punto fijo es simplemente $P(t)^* = 0$
+
+Para el análisis de estabilidad, derivando obtenemos $f'(P) = b_0 - m_0 + i_0$. Luego:
+
+- Si $(b_0 - m_0 + i_0)<0$ el punto es estable
+- Si $(b_0 - m_0 + i_0)>0$  el punto es inestable
+"""
+
+# ╔═╡ 7c9ac58b-b519-4e6b-82a1-ca4054e85159
+md"""
+Usando los parametros estimados en la sección siguiente podemos hacer una pequeña visualización de este diagrama de fase
+
+
+"""
+
+# ╔═╡ 034dc903-a4fa-4b03-a727-2010e2e5bcaa
+begin
+
+	
+	# Parámetros del modelo
+	b0 = 0.017677145853682758
+	m0 = 0.018711228739109045
+	i0 = 0.0205127998223295
+	r_pc = b0 - m0 + i0  # Parámetro r
+	
+	# Función que define el sistema
+	function dPdt(P, r)
+	    return r * P
+	end
+	# Rango de valores de P para graficar
+	P_range = minimum(poblacion):0.1:maximum(poblacion)  
+	
+	# Calcular dP/dt para cada valor de P
+	dP_values = dPdt.(P_range, r_pc)
+	
+	# Graficar el diagrama de fase
+	plt_pc = plot(P_range, dP_values, 
+	     xlabel="P(t)", 
+	     ylabel="dP/dt", 
+	     title="Diagrama de fase: dP/dt = r P(t)", 
+	     label="dP/dt", 
+	     linewidth=2)
+	
+	# Agregar una línea horizontal en dP/dt = 0 para indicar el punto fijo
+	hline!([0], label="Punto fijo (dP/dt = 0)", linestyle=:dash, linecolor=:red)
+	
+	# Agregar flechas para indicar la dirección del flujo
+	for P in -10:2:10  # Agregar flechas cada 2 unidades
+	    dP = dPdt(P, r)
+	    quiver!([P], [0], quiver=([0], [dP]), label="", color=:blue)
+	end
+	
+	# Mostrar la gráfica
+	display(plt_pc)
+end
+
+# ╔═╡ 88b6ab95-398f-4239-b372-1d89d9d20931
+html"""
+<h4>Implementación del modelo</h4>
 """
 
 # ╔═╡ 572426eb-7a73-4334-8c25-af2400967afc
@@ -523,26 +801,22 @@ end
 
 # ╔═╡ af490f60-9de6-4d44-a611-7af29c766a0f
 html"""
-<h4>Modelo de territorio</h4>
+<h4>Modelo intuitivo de territorio</h4>
 """
 
 # ╔═╡ da98c8b9-4902-4221-90ed-5c4dd90a53ac
 md"""
-Consideramos el modelo en el que la expansión de la huella urbana es proporcional al crecimiento poblacional y a la demanda de viviendas, pero limitada por la estructura ecológica (área protegida):
+Retomando la simplificación del modelo tenemos
 
-$$\frac{dU}{dt} = \alpha P(t) + \beta V(t) - \gamma E(t),$$
+$$\frac{dU}{dt} = \bar\alpha\; P(t) - \gamma E(t) + \bar\beta$$
 
-la estructura ecológica disminuye debido a la expansión de la huella urbana:
+$$\frac{dE}{dt} = -\delta U(t)$$
 
-$$\frac{dE}{dt}=-\delta U(t),$$
+Donde $\bar\alpha = \alpha + \frac{\beta}{\kappa}$ y $\bar\beta = \beta C_1$ con $C_1$ una constante de integración.
 
-la demanda de viviendas, asumimos depende del promedio de personas por hogar $\kappa$:
+$$\frac{dP}{dt} = \rho P(t) \;( 1- \frac{P(t)}{k_1U(t) - k_2E(t)})$$
 
-$$\frac{dV}{dt} = \frac{1}{\kappa}\frac{dP}{dt};$$
-
-y la superficie del suelo urbano disponible disminuirá proporcionalmente con la expasión de la huella urbana:
-
-$$\frac{dD}{dt} = -\nu \frac{dU}{dt}.$$
+con $\rho$ tasa de crecimiento intrínseco y $k_1U(t) + k_2E(t)$ la capacidad de carga que se contribuye por $U(t)$ y se limita por $E(t)$.
 """
 
 # ╔═╡ d402fa78-10e6-4906-97c8-a864439624f5
@@ -558,9 +832,167 @@ begin
 	V_obs = df_territorio[!, "Viviendas (ocupadas)"]
 end
 
-# ╔═╡ 17ccc2ee-ebec-4338-9fa5-afbe6ccf54c8
+# ╔═╡ 7937faec-3fb6-4738-8101-2ef043fb94d7
+html"""
+<h4>Análisis de diagramas de fase</h4>
+"""
+
+# ╔═╡ 551d99ca-b51c-4227-81aa-96a35c5fb6ed
 md"""
-E implementamos el modelo:
+#### Puntos fijos
+
+Al igualar a cero obtenemos las siguientes puntos fijos:
+
+- Si $P(t) = 0$:
+
+$$U(t) = 0$$
+
+$$P(t) = 0$$
+
+$$E(t) = \frac{\bar\beta}{\gamma}$$
+
+- Si $P(t) \neq 0$:
+
+$$U(t) = 0$$
+
+$$P(t) = k_2E(t) = \frac{k_2\bar\beta}{k_2 \bar\alpha + \gamma}$$
+
+$$E(t) = \frac{\bar\beta}{k_2 \bar\alpha + \gamma}$$
+"""
+
+# ╔═╡ efaf86c6-f6ab-45ea-9efc-fc0e7a5049d4
+md"""
+#### Jacobiano
+
+Para el jacobiano tenemos que:
+
+$$J = 
+\begin{bmatrix}
+\frac{\partial}{\partial U}(\frac{dU}{dt}) & \frac{\partial}{\partial E}(\frac{dU}{dt}) & \frac{\partial}{\partial P}(\frac{dU}{dt}) \\
+\frac{\partial}{\partial U}(\frac{dE}{dt}) & \frac{\partial}{\partial E}(\frac{dE}{dt}) & \frac{\partial}{\partial P}(\frac{dE}{dt}) \\
+\frac{\partial}{\partial U}(\frac{dP}{dt}) & \frac{\partial}{\partial E}(\frac{dP}{dt}) & \frac{\partial}{\partial P}(\frac{dP}{dt})
+\end{bmatrix}$$
+
+$$J = 
+\begin{bmatrix}
+0 & -\gamma & \bar\alpha \\
+-\gamma & 0 & 0 \\
+\frac{\rho k_1 P(t)^2}{K^2} & \frac{-\rho k_2 P(t)^2}{K^2} & \rho - \frac{2\rho P(t)}{K}
+\end{bmatrix}$$
+
+Donde $K = k_1U(t) - k_2E(t)$.
+"""
+
+# ╔═╡ 972a0170-5ccd-4073-816b-62ec89f6b8d8
+md"""
+#### Valores y vectores propios
+
+Se debe evaluar el jacobiano en los puntos fijos para posteriormente sacar los valores y vectores propios.
+
+- $(U(t)^*, E(t)^*, P(t)^*) = (0, \frac{\bar\beta}{\gamma}, 0):$
+
+$$J = 
+\begin{bmatrix}
+0 & -\gamma & \bar\alpha \\
+-\gamma & 0 & 0 \\
+0 & 0 & \rho
+\end{bmatrix}$$
+
+Valores propios:
+
+$$\lambda_1 = \rho, \;\; \lambda_2 = \gamma, \;\; \lambda_3 = -\gamma$$
+
+Vectores propios:
+
+$$\vec{v_1} = 
+\begin{pmatrix}
+1 \\
+- \frac{\gamma}{\rho}\\
+\frac{\rho^2 - \gamma^2}{\rho \bar\alpha}
+\end{pmatrix}
+\;\;
+\vec{v_2} = 
+\begin{pmatrix}
+1 \\
+-1\\
+0
+\end{pmatrix}
+\;\;
+\vec{v_3} = 
+\begin{pmatrix}
+1 \\
+1 \\
+0
+\end{pmatrix}$$
+
+- $(U(t)^*, E(t)^*, P(t)^*) = (0, E(t)^*, k_2E(t)^*):$
+
+Dado este punto fijo se tiene $K = -k_2E(t)^* = -P(t)^*$:
+
+$$J = 
+\begin{bmatrix}
+0 & -\gamma & \bar\alpha \\
+-\gamma & 0 & 0 \\
+\rho k_1 & -\rho k_2 & 3\rho
+\end{bmatrix}$$
+
+Valores propios:
+
+$$\lambda_1 = 3\rho, \;\; \lambda_2 = \sqrt{\gamma ^2 + \bar\alpha\gamma} \;\; \lambda_3 = - \sqrt{\gamma ^2 + \bar\alpha\gamma}$$
+
+Vectores propios:
+
+$$\vec{v_1} = 
+\begin{pmatrix}
+0\\
+0\\
+1
+\end{pmatrix}
+\;\;
+\vec{v_2} = 
+\begin{pmatrix}
+1 \\
+-\frac{\gamma}{\sqrt{\gamma ^2 + \bar\alpha\gamma}}\\
+\frac{\gamma}{\sqrt{\gamma ^2 + \bar\alpha\gamma}}
+\end{pmatrix}
+\;\;
+\vec{v_3} = 
+\begin{pmatrix}
+1 \\
+\frac{\gamma}{\sqrt{\gamma ^2 + \bar\alpha\gamma}} \\
+-\frac{\gamma}{\sqrt{\gamma ^2 + \bar\alpha\gamma}}
+\end{pmatrix}$$
+
+"""
+
+# ╔═╡ f3f0002c-ac51-417b-93f8-7525c00be911
+md"""
+#### Análisis
+- $(U(t)^*, E(t)^*, P(t)^*) = (0, \frac{\bar\beta}{\gamma}, 0):$
+
+$$\lambda_1 = \rho, \;\; \lambda_2 = \gamma, \;\; \lambda_3 = -\gamma$$
+
+Dadas las diferentes combinaciones posibles con los signos de $\lambda _1, \; \lambda _2, \; \lambda _3$, se tienen o bien dos valores propios negativos y uno positivo, o dos valores propios positivos y uno negativo. En cualquier caso, el punto en cuestión es un **punto de silla**
+
+
+- $(U(t)^*, E(t)^*, P(t)^*) = (0, E(t)^*, k_2E(t)^*):$
+
+$$\lambda_1 = 3\rho, \;\; \lambda_2 = \sqrt{\gamma ^2 + \bar\alpha\gamma} \;\; \lambda_3 = - \sqrt{\gamma ^2 + \bar\alpha\gamma}$$
+
+De manera análoga al punto anterior, en todas las combinaciones posibles de signos se obtienen o bien dos valores propios positivos y uno negativo, o bien dos valores negativos y uno positivo. Por tanto, este punto también es un **punto de silla**
+
+"""
+
+# ╔═╡ 793d4505-1222-420c-89df-15f18c87b553
+md"""
+Usando los parametros estimados en la sección siguiente y apoyándonos en las librerías de Julia, podemos hacer una pequeña visualización de este diagrama de fase
+
+
+"""
+
+# ╔═╡ 17ccc2ee-ebec-4338-9fa5-afbe6ccf54c8
+html"""
+<h4>Implementación del modelo</h4>
 """
 
 # ╔═╡ 6e2fc998-b00c-41ba-94ad-e0efe6fa77ef
@@ -735,6 +1167,47 @@ begin
 	end
 end
 
+# ╔═╡ 0b8fe699-b513-4fa9-9fce-615468f6abaa
+begin
+
+	
+	# Definir el sistema de ecuaciones
+	function modelo_intuitivo(u, p, t)
+	    # Parámetros
+
+
+		α, β, γ, δ, κ, ν, ρ, k1, k2, C1   = [-0.00018954163479880512, 
+		0.001211966263261876,
+		0.019042918813165898,
+		-0.0039867402564575626,
+		2.6759783795361796,
+		0.712744354419162, 0.00018954163479880512, 0.019042918813165898, 0.0290329188147231, 1 ]
+	    # Variables del sistema
+	    U, E, P = u
+	
+	    # Definir α_bar y β_bar
+	    α_bar = α + β / κ
+	    β_bar = β * C1
+	
+	    # Ecuaciones diferenciales
+	    dU = α_bar * P - γ * E + β_bar  # dU/dt
+	    dE = -δ * U                     # dE/dt
+	    dP = ρ * P * (1 - P / (k1 * U - k2 * E))  # dP/dt
+		return [dU, dE, dP]
+	end
+	
+	# Condiciones iniciales y rango de tiempo
+	u0_intuitivo = [U_obs[1], E_obs[1], P_obs[1]]
+	tspan_intuitivo = (t_data[1], t_data[end])
+	
+	# Resolver el sistema
+	prob_int = ODEProblem(modelo_intuitivo, u0_intuitivo, tspan_intuitivo)
+	sol_int = solve(prob_int)
+	
+	# Graficar en 3D
+	plot(sol_int, vars=(1, 2, 3), xlabel="U(t)", ylabel="E(t)", zlabel="P(t)", title="Diagrama de fase Modelo Intuitivo", legend=false)
+end
+
 # ╔═╡ c9b515c9-777f-4d0a-9dee-9e9881393e2b
 md"""
 Función para calcular el error:
@@ -854,6 +1327,269 @@ begin
 	gif(anim, "animacion_variables.gif", fps=20)
 end
 
+# ╔═╡ 90abe302-556a-4571-b1bc-5a8b2a283f10
+html"""
+<h4>Modelo SIR de territorio</h4>
+"""
+
+# ╔═╡ 08e74abb-b535-45c7-a30c-cfbef145cb1f
+md"""
+El modelo simplificado que se tiene es
+
+$$\frac{dD}{dt} = -\alpha D(t)N(t)$$
+
+$$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
+"""
+
+# ╔═╡ 26c62ab8-f189-4817-a9ca-3c2547d517ee
+html"""
+<h4>Análisis de diagramas de fase</h4>
+"""
+
+# ╔═╡ 0ab22288-b241-4213-9583-3066aa870eb4
+md"""
+#### Puntos fijos
+
+Al igualar a cero obtenemos el siguiente punto fijo:
+
+$$N(t) = 0$$
+
+$$D(t) = D$$
+
+El este caso, tomamos a $D(t)$ como una constante
+"""
+
+# ╔═╡ a86bd973-41de-4a60-a78d-cb38a48dbe2b
+md"""
+#### Jacobiano
+
+Para el jacobiano tenemos que:
+
+$$J = 
+\begin{bmatrix}
+\frac{\partial}{\partial N}(\frac{dN}{dt}) & \frac{\partial}{\partial D}(\frac{dN}{dt}) \\
+\frac{\partial}{\partial N}(\frac{dD}{dt}) & \frac{\partial}{\partial D}(\frac{dD}{dt})
+\end{bmatrix}$$
+
+$$J = 
+\begin{bmatrix}
+\alpha D(t) - \gamma & \alpha N(t)\\
+-\alpha D(t) & - \alpha N(t) 
+\end{bmatrix}$$
+"""
+
+# ╔═╡ 3020fde9-79ea-4e64-8bd4-fd9951e5d869
+md"""
+#### Valores y vectores propios
+Se debe evaluar el jacobiano en el punto fijo para posteriormente sacar los valores y vectores propios.
+
+- $(N(t)^*, D(t)^*) = (0, D):$
+
+$$J = 
+\begin{bmatrix}
+\alpha D - \gamma & 0 \\
+-\alpha D & 0
+\end{bmatrix}$$
+
+Valores propios:
+
+$$\lambda_1 = \alpha - \gamma , \;\; \lambda_2 = 0$$
+
+Vectores propios:
+
+$$\vec{v_1} = 
+\begin{pmatrix}
+1 \\
+- \frac{\alpha D}{\alpha D - \gamma }
+\end{pmatrix}
+\;\;
+\vec{v_2} = 
+\begin{pmatrix}
+0 \\
+1
+\end{pmatrix}$$
+"""
+
+# ╔═╡ 23e13275-6161-4cd2-9db7-640bb3f2f2d7
+md"""
+#### Análisis
+
+- $(N(t)^*, D(t)^*) = (0, D):$
+
+$$\lambda_1 = \alpha - \gamma , \;\; \lambda_2 = 0$$
+
+Dado que uno de los valores propios es cero, no hay equililibrios isolados
+"""
+
+# ╔═╡ 9ce52baf-59fd-4ff5-a813-b10b3c2e97df
+md"""
+Usando los parametros estimados en la sección siguiente y apoyándonos en las librerías de Julia, podemos hacer una pequeña visualización de este diagrama de fase
+
+
+"""
+
+# ╔═╡ 3dc31262-5060-482e-ac8d-96a63d5daf90
+begin
+
+	function modeloSIR_params(u, par, t)
+	    D, N= u
+	    α, γ = [0.0000001, 0.02]
+	    dD = -α * D * N  # dD/dt
+	    dN = α * D * N  - γ * N          # dN/dt
+		return [dD, dN]
+
+	end
+
+	dUdT = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])
+
+	u0_sir = [U_obs[1], dUdT/0.02]
+	
+	tspan_sir = (t_data[1], t_data[end])
+
+	
+	prob_sir = ODEProblem(modeloSIR_params, u0_sir, tspan_sir)
+	sol_sir = solve(prob_sir)
+	
+	# Graficar
+	plot(sol_sir, vars=(1, 2), xlabel="D(t)", ylabel="N(t)", title="Diagrama de fase territorio SIR", legend=false)
+end
+
+# ╔═╡ 1f84fe46-40f6-4ce3-ab97-eda399afaebe
+html"""
+<h4>Implementación del modelo</h4>
+"""
+
+# ╔═╡ c3355b2a-e708-4278-bf53-469a24a3a05e
+md"""
+Como se mencionó anteriormente, dada la imposibilidad de encontrar datos para el suelo en desarrollo, se consideró la siguiente reescritura:
+
+$$\frac{dD}{dt} = -\frac{\alpha}{\gamma}D(t) \frac{dU}{dt}$$
+
+$$\frac{d^2U}{dt^2} = (\alpha D(t) - \gamma) \frac{dU}{dt}$$
+
+"""
+
+# ╔═╡ 5070459f-1156-4bb6-92dd-1bd524ecc1e8
+begin
+	function modelo!(u, p, t)
+	    D, U, dudt = u
+	    α, γ = p
+	    dD = -α/γ * D * dudt  # dD/dt
+	    dU = dudt             # dU/dt
+	    dUdT = (α * D - γ) * dudt  # d²U/dt²
+		return [dD, dU, dUdT]
+	end
+end
+
+# ╔═╡ 298d2b81-9fcf-4d42-9c3e-290962ca42a6
+begin
+	
+	# Función para resolver el modelo y calcular el error
+	function error_sir(params)
+	    α, γ = params
+		dU0 = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])  # Aproximación de dU/dt en t=0
+	    u0 = [D_obs[1], U_obs[1], dU0]
+	    p = (α, γ)
+	    tspan = (t_data[1], t_data[end])
+		
+	    prob = ODEProblem((u, par, t) -> modelo!(u, par, t), u0, tspan, p)
+
+		
+		# Resolver el modelo en los puntos de tiempo de los datos
+	    sol = solve(prob, saveat=t_data) 
+	        # Extraer las predicciones del modelo
+	    D_pred = [u[2] for u in sol.u]  # Predicciones de D(t)
+    	U_pred = [u[1] for u in sol.u]  # Predicciones de U(t)
+		
+	    # Calcular el error cuadrático medio
+	    error_D = sum((D_pred .- D_obs).^2)  # Error en D(t)
+	    error_U = sum((U_pred .- U_obs).^2)  # Error en U(t)
+	
+	    # Error total (suma de errores cuadrados)
+	    error_total = error_D + error_U
+		
+	    return error_total
+
+	end
+		
+end
+
+# ╔═╡ eca0ce08-0094-480b-9c89-1964f56d0430
+begin
+	par_inicial_sir = [0.1, 0.05]  # [α, γ]
+	lower_bounds = [0.0, 0.0]   # Límites inferiores para α y γ
+	upper_bounds = [Inf, Inf]  # Límites superiores para α y γ
+	opt_result_sir = Optim.optimize(error_sir, lower_bounds, upper_bounds, par_inicial_sir, NelderMead())
+	par_est_sir = Optim.minimizer(opt_result_sir)
+
+	println(opt_result_sir)
+	println("Parámetros territoriales estimados:")
+	println("α = ", par_est_sir[1])
+	println("γ = ", par_est_sir[2])
+
+end
+
+
+# ╔═╡ 06519699-0193-4f27-9424-a561c2a35208
+begin
+	# --------------------------------------------------
+	# Resolución del sistema territorial con parámetros estimados
+	# --------------------------------------------------
+
+	function sir_estimado(p)
+		dU0 = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])  # Aproximación de dU/dt en t=0
+	    u0 = [D_obs[1], U_obs[1], dU0]
+	    tspan = (t_data[1], t_data[end])
+	    prob = ODEProblem(modelo!, u0, tspan, p)
+		
+		# Resolver el modelo en los puntos de tiempo de los datos
+	    sol = solve(prob, saveat=t_data) 
+	        # Extraer las predicciones del modelo
+	    D_pred = sol[1, :]  # Predicciones de D(t)
+	    U_pred = sol[2, :]  # Predicciones de U(t)
+		return D_pred, U_pred
+	end
+end
+
+# ╔═╡ b2d0f888-e004-4986-96f6-f4284ae13e73
+begin
+	# --------------------------------------------------
+	# Graficar resultados (observados vs simulados)
+	# --------------------------------------------------
+	
+	function graficar_sir(params)
+		D_sim, U_sim = sir_estimado(params)
+		println("Tamaño de D_sim: ", length(D_sim))
+		println("D_sim: ", D_sim)
+	    println("U_sim: ", U_sim)
+	    println("Tamaño de U_sim: ", length(U_sim))
+		plt_sir = plot(t_data, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+		plot!(plt_sir, t_data, D_obs, lw=2, linestyle=:dash, label="Área disponible (obs)")
+		
+		plot!(plt_sir, t_data, U_sim, lw=2, label="Huella Urbana (sim)")
+		plot!(plt_sir, t_data, D_sim, lw=2, label="Área disponible (sim)")
+		xlabel!("Tiempo (años)")
+		ylabel!("Valor de la variable")
+		title!("Comparación: Datos observados vs. Simulación del modelo territorial")
+	end
+end
+
+# ╔═╡ 981d8630-1009-46c5-8d18-15cf83182d29
+graficar_sir(par_est_sir)
+
+# ╔═╡ d759d211-ca6d-440b-95e3-98deaa575e15
+md"""No obstante, este enfoque presentó problemas a la hora de buscar los parametros correctos. En particular, vemos como en la gráfica las curvas no ajustan bien para los datos observados. Los parámetros encontrados por el optimizador son
+
+$$\alpha = 1.93 \cdot 10^8 \; \gamma = 6.91 \cdot 10^8$$
+
+A pesar de los esfuerzos infructuosos por una búsqueda acertada por medio del optimizador, se halló la siguiente aproximación de forma manual. Aproximación mucho más acertada usando los parametros
+
+$$\alpha = 2 \cdot 10^{-7} \; \gamma = 0.0365$$
+"""
+
+# ╔═╡ 60b65057-c281-4506-be6d-872c8ea1f815
+graficar_sir([0.0000002, 0.0365])
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -861,6 +1597,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -870,6 +1607,7 @@ CSV = "~0.10.15"
 DataFrames = "~1.7.0"
 DifferentialEquations = "~7.13.0"
 Images = "~0.26.1"
+Interpolations = "~0.15.1"
 Optim = "~1.10.0"
 Plots = "~1.40.7"
 """
@@ -880,7 +1618,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "07f7b77109407b20eec1a50c5387d60d43c738f2"
+project_hash = "b8680a7fdcb1bb806329b237407f83e1e2476eff"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -3548,9 +4286,12 @@ version = "1.4.1+1"
 # ╟─d54db4d3-d204-42da-834c-4527372d8dc5
 # ╟─b4038522-2a3d-4735-9427-b5daf2e2e021
 # ╟─aeb46253-0b04-4429-8f82-1fd4f33412df
+# ╟─ac57d4c7-90a7-4ee1-9918-c5e3e42646d4
 # ╟─69f5485b-f15a-4cd2-a66f-0df8eec38dfb
-# ╟─5824e211-89e7-48c6-a61e-d29a767c129a
+# ╟─2d16f761-a67c-401a-af9b-8fb7e045a47a
+# ╟─9b9b6f1e-e816-436d-8353-e32de81ce39c
 # ╟─6bd2a1f9-cf3a-4f3a-b437-fd2460998400
+# ╟─7d356bfa-9653-479c-9882-ee24a977c887
 # ╟─06fbabc4-86ec-4a96-b21b-f8388642eb80
 # ╟─a46ab93a-5c30-46ee-b0f4-9422bd815efd
 # ╟─701af503-04fd-4a2a-8e6a-c7920742515f
@@ -3579,15 +4320,22 @@ version = "1.4.1+1"
 # ╠═1e6eaec1-b7e5-4d48-91f0-91d82a1d80ae
 # ╟─0f3efab8-8425-49b7-8fb5-431f494cc0af
 # ╠═e0cf5bb3-a644-4223-aa87-a0e0b921f13a
-# ╟─74e9ff7c-423f-48a6-8418-20a3178564ef
 # ╟─35438e3a-7306-449b-a176-88a33ab3d8b9
 # ╟─c21a0f23-5941-4dcd-a9cb-2bbb03ffddb0
+# ╟─f087c6ec-f648-49c3-9f86-940ad290abae
+# ╟─e8c662b4-0f54-46f0-b61c-cb67b7f55f6f
+# ╟─7cce6391-8d80-4786-8bad-d1dd5658846c
+# ╟─9956c3ef-51a4-4260-85c7-9e63adae9b9e
+# ╟─83d199ce-b358-41ca-bf72-8b2662dec7d0
+# ╟─602cf17d-7b1f-40a5-a2a4-e891bb6a5560
+# ╟─1e867ef2-5480-44b9-b36a-18ac2a79ddd9
+# ╠═1c8b972b-c360-4dd9-b634-f1b77725174f
+# ╠═85d4e17f-c268-4f71-929f-37c482c3a873
+# ╠═57712785-86ed-4ef6-828b-8a33c7a82799
 # ╟─8f2f03e2-9989-4230-b711-760c9a437268
 # ╠═6d57a957-0c0d-4695-8c02-204a5ef305bb
 # ╟─ba331eb3-1306-419f-b701-d28dbf909849
 # ╠═568b05cf-ebfd-44a0-8032-5d823cb20fcf
-# ╠═f21cf80e-7325-4a95-b3db-1ac151412823
-# ╠═c6f57485-f8fa-49ac-a42a-b44dc4b118ed
 # ╠═82dfc6bb-2c49-4f7f-b0c4-a52df4d51531
 # ╟─e6513348-b3da-4a00-acdb-a4b55151576e
 # ╠═d5be5faf-5ada-471e-bf6a-1ea29c999df6
@@ -3597,6 +4345,10 @@ version = "1.4.1+1"
 # ╠═7985babc-fa7f-49bc-a4cc-f46852b818e2
 # ╟─10824b06-7872-4695-ba44-45dec2765af8
 # ╟─aa32a966-ddc0-404f-824f-0e6abeb553ca
+# ╟─b414f8e8-7f47-4ac8-9f0d-fd0dde6a20d6
+# ╟─b5ed718c-17c9-4892-b9cd-136dc752600d
+# ╟─7c9ac58b-b519-4e6b-82a1-ca4054e85159
+# ╠═034dc903-a4fa-4b03-a727-2010e2e5bcaa
 # ╟─88b6ab95-398f-4239-b372-1d89d9d20931
 # ╠═572426eb-7a73-4334-8c25-af2400967afc
 # ╟─0bc0c101-8a9f-4973-95d8-acced03dc3c2
@@ -3612,6 +4364,13 @@ version = "1.4.1+1"
 # ╟─da98c8b9-4902-4221-90ed-5c4dd90a53ac
 # ╟─d402fa78-10e6-4906-97c8-a864439624f5
 # ╠═5283490a-07cc-4117-b40a-7ae2af2ddc15
+# ╟─7937faec-3fb6-4738-8101-2ef043fb94d7
+# ╟─551d99ca-b51c-4227-81aa-96a35c5fb6ed
+# ╟─efaf86c6-f6ab-45ea-9efc-fc0e7a5049d4
+# ╟─972a0170-5ccd-4073-816b-62ec89f6b8d8
+# ╟─f3f0002c-ac51-417b-93f8-7525c00be911
+# ╟─793d4505-1222-420c-89df-15f18c87b553
+# ╠═0b8fe699-b513-4fa9-9fce-615468f6abaa
 # ╟─17ccc2ee-ebec-4338-9fa5-afbe6ccf54c8
 # ╠═6e2fc998-b00c-41ba-94ad-e0efe6fa77ef
 # ╟─e6690cd2-05e7-4ffb-8486-d70de5e87717
@@ -3632,5 +4391,24 @@ version = "1.4.1+1"
 # ╟─4dd8b483-622c-403e-8b90-318fb3824879
 # ╠═ea3a24df-c13c-4c5c-b0ab-e8ee145fbfd2
 # ╠═267f5483-a347-459b-8701-96bdb02f3ee9
+# ╟─90abe302-556a-4571-b1bc-5a8b2a283f10
+# ╟─08e74abb-b535-45c7-a30c-cfbef145cb1f
+# ╟─26c62ab8-f189-4817-a9ca-3c2547d517ee
+# ╟─0ab22288-b241-4213-9583-3066aa870eb4
+# ╟─a86bd973-41de-4a60-a78d-cb38a48dbe2b
+# ╟─3020fde9-79ea-4e64-8bd4-fd9951e5d869
+# ╟─23e13275-6161-4cd2-9db7-640bb3f2f2d7
+# ╟─9ce52baf-59fd-4ff5-a813-b10b3c2e97df
+# ╠═3dc31262-5060-482e-ac8d-96a63d5daf90
+# ╟─1f84fe46-40f6-4ce3-ab97-eda399afaebe
+# ╟─c3355b2a-e708-4278-bf53-469a24a3a05e
+# ╠═5070459f-1156-4bb6-92dd-1bd524ecc1e8
+# ╠═298d2b81-9fcf-4d42-9c3e-290962ca42a6
+# ╠═eca0ce08-0094-480b-9c89-1964f56d0430
+# ╠═06519699-0193-4f27-9424-a561c2a35208
+# ╠═b2d0f888-e004-4986-96f6-f4284ae13e73
+# ╠═981d8630-1009-46c5-8d18-15cf83182d29
+# ╟─d759d211-ca6d-440b-95e3-98deaa575e15
+# ╠═60b65057-c281-4506-be6d-872c8ea1f815
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

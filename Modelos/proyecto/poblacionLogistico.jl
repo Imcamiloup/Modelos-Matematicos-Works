@@ -5,7 +5,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 8108fd90-e1ba-11ef-2220-c34f038a1f2d
-using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames, 	GLM, Interpolations, NumericalIntegration
+using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames, 	GLM, NumericalIntegration,  Interpolations
 
 # ╔═╡ 4014a39a-863e-4d4c-9255-80ade3a3fe21
 html"""
@@ -346,6 +346,7 @@ html"""
 """
 
 # ╔═╡ f764711d-47d3-492e-9aed-76bd29736493
+
 begin
 	# Extraer datos observados para las variables territoriales
 	U_obs = df_territorio[!, "Huella Urbana"]
@@ -356,7 +357,7 @@ end
 
 # ╔═╡ 72c968a1-1fb3-4025-a7bf-fa989204f08c
 # --------------------------------------------------
-# Modelo de territorio
+# Modelo de territorio (enfoque desacoplado)
 # Variables del sistema: U(t), E(t), V(t), D(t)
 # Parámetros a estimar: par = [α, β, γ, δ, κ, ν]
 # Ecuaciones:
@@ -378,6 +379,10 @@ function modeloTerritorio(u, par, t)
 end
 
 # ╔═╡ 46c31ba6-bc97-4986-8744-b0846010cb93
+# --------------------------------------------------
+# Función de error para la optimización
+# Se integra el sistema y se compara con los datos observados
+# --------------------------------------------------
 function residuoTerritorio(par)
   # Condiciones iniciales tomadas de los datos (en t = t_data[1])
   u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
@@ -402,7 +407,10 @@ function residuoTerritorio(par)
 end
 
 # ╔═╡ 88ea74a2-5890-46f4-bcb1-9c272222c720
-# [α, β, γ, δ, κ, ν]
+# --------------------------------------------------
+# Optimización de parámetros territoriales
+# Se define una estimación inicial para [α, β, γ, δ, κ, ν]
+# --------------------------------------------------
 # par_inicial = [1e-3, 1e-5, 1e-5, -1e-5, 4.0, 1.0]
 par_inicial = [1e-3, 1e-3, 1e-3, -1e-5, 2.0, 1.0]
 
@@ -423,6 +431,9 @@ end
 
 # ╔═╡ 2022ed7c-0efd-4db3-910a-79a09b41651f
 begin
+	# --------------------------------------------------
+	# Resolución del sistema territorial con parámetros estimados
+	# --------------------------------------------------
 	u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
 	tspan = (t_data[1], t_data[end])  # Aseguramos que sea una tupla de 2 elementos
 	prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
@@ -491,12 +502,12 @@ begin
 # Datos observados
 P_obs = df_poblacion[!, "población"]
 
-# Condiciones iniciales:
+# Condiciones iniciales para el modelo acoplado:
 # u0 = [P(0), U(0), E(0), V(0), D(0)]
 u0_D = [P_obs[1], U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
 
 # --------------------------------------------------
-# Modelo: población y territorio
+# Modelo Acoplado: población y territorio
 # Estado: u = [P, U, E, V, D]
 # Parámetros: par = [r, K, α, β, γ, δ, κ, ν]
 #   - Población: dP/dt = r * P * (1 - P/K)
@@ -523,7 +534,9 @@ function modeloCompleto(u, par, t)
 end
 
 # --------------------------------------------------
-# Función de error para la optimización del modelo
+# Función de error para la optimización del modelo acoplado
+# Se integran las ecuaciones y se calcula la suma de errores cuadrados
+# entre las soluciones simuladas y los datos observados.
 # --------------------------------------------------
 function residuoCompleto(par_D)
   tspan = (t_data[1], t_data[end])
@@ -531,6 +544,7 @@ function residuoCompleto(par_D)
                     u0_D, tspan, par_D)
   sol = solve(prob, Tsit5(), saveat=t_data)
   
+  # Extraer las soluciones simuladas
   P_sim = [sol[i][1] for i in 1:length(sol)]
   U_sim = [sol[i][2] for i in 1:length(sol)]
   E_sim = [sol[i][3] for i in 1:length(sol)]
@@ -577,6 +591,10 @@ end
 
 # ╔═╡ 01abb6ec-f709-49cc-b67c-7c3aa1914827
 begin
+	# --------------------------------------------------
+	# Graficar cada variable en un eje distinto (subplots)
+	# Se usa un layout de 3 filas para acomodar las 5 variables
+	# --------------------------------------------------
 	anim = @animate for i in 1:length(t_data)
 	l1 = @layout [a; b; c; d; e]
 	p1 = plot(layout = l1, size=(1000,1400))
@@ -1020,14 +1038,14 @@ begin
 
 	u0_sir = [U_obs[1], dUdT/0.02]
 	# Asegurarse de que tspan sea una tupla de dos elementos:
-	# tspan_sir = (t_data[1], t_data[end])
+	tspan_sir = (t_data[1], t_data[end])
 
 	
 	prob_sir = ODEProblem(modeloSIR_params, u0_sir, tspan_sir)
 	sol_sir = solve(prob_sir)
 	
 	# Graficar
-	plot(sol_sir, vars=(1, 2), xlabel="x", ylabel="y", title="Diagrama de fase 2D", legend=false)
+	plot(sol_sir, vars=(1, 2), xlabel="x", ylabel="y", title="Diagrama de fase territorio intuitivo", legend=false)
 end
 
 # ╔═╡ 17104d73-26eb-4bbd-8458-9b7cc812fb5f
@@ -1075,6 +1093,98 @@ begin
 	
 	# Graficar en 3D
 	plot(sol_int, vars=(1, 2, 3), xlabel="x", ylabel="y", zlabel="z", title="Atractor de Lorenz (Diagrama de fase 3D)", legend=false)
+end
+
+# ╔═╡ 885923d1-9908-49b2-b4a7-3936d07486ae
+html"""
+<h4>Análisis de diagramas de fase</h4>
+"""
+
+# ╔═╡ f431d001-efea-4049-990e-83c3b1eb54dc
+begin
+	
+	# Calcular I(t) = migrantes(t) * P(t)
+	I_data = migracion .* poblacion
+	
+	# Aproximar dI/dt usando diferencias finitas
+	dI_dt = diff(I_data) ./ diff(t_data)
+	
+	# Interpolación de dI/dt
+
+	itp_mig = LinearInterpolation(t_data[1:end-1], dI_dt, extrapolation_bc=Line())  # Interpolación lineal
+	
+	# Definir el sistema de EDOs
+	function sistema_log(du, u, p, t)
+	    P, I = u
+	    r, K = p
+	    du[1] = r * P * (1 - P / K) + I  # dP/dt
+	    du[2] = itp_mig(t)  # dI/dt (usando la interpolación)
+	end
+	
+	# Parámetros del modelo
+	# r = 0.061585326110287275 # Tasa de crecimiento
+	# K = 8.514304236741986e6
+  # Capacidad de carga
+	p_mig = [0.061585326110287275, 8.514304236741986e6
+]  # Parámetros
+	
+	# Condiciones iniciales
+	P0_mig = poblacion[1]  # Población inicial
+	I0_mig = I_data[1]  # Migrantes iniciales
+	u0_mig = [P0_mig, I0_mig]
+	
+	# Rango de tiempo
+	tspan_mig = (t_data[1], t_data[end])
+	
+	# Resolver el sistema
+	prob_mig = ODEProblem(sistema_log, u0_mig, tspan_mig, p_mig)
+	sol_mig = solve(prob_mig)
+	
+	# Graficar el diagrama de fase
+	plot(sol_mig, vars=(1, 2), xlabel="P(t)", ylabel="I(t)", 
+	     title="Diagrama de fase: P vs I", label="Trayectoria", linecolor=:blue)
+
+end
+
+# ╔═╡ 85294b15-471d-4472-b2a4-dfa2a1067350
+begin
+
+	
+	# Parámetros del modelo
+	b0 = 0.017677145853682758
+	m0 = 0.018711228739109045
+	i0 = 0.0205127998223295
+	r_pc = b0 - m0 + i0  # Parámetro r
+	
+	# Función que define el sistema
+	function dPdt(P, r)
+	    return r * P
+	end
+	# Rango de valores de P para graficar
+	P_range = minimum(poblacion):0.1:maximum(poblacion)  
+	
+	# Calcular dP/dt para cada valor de P
+	dP_values = dPdt.(P_range, r_pc)
+	
+	# Graficar el diagrama de fase
+	plt_pc = plot(P_range, dP_values, 
+	     xlabel="P(t)", 
+	     ylabel="dP/dt", 
+	     title="Diagrama de fase: dP/dt = r P(t)", 
+	     label="dP/dt", 
+	     linewidth=2)
+	
+	# Agregar una línea horizontal en dP/dt = 0 para indicar el punto fijo
+	hline!([0], label="Punto fijo (dP/dt = 0)", linestyle=:dash, linecolor=:red)
+	
+	# Agregar flechas para indicar la dirección del flujo
+	for P in -10:2:10  # Agregar flechas cada 2 unidades
+	    dP = dPdt(P, r)
+	    quiver!([P], [0], quiver=([0], [dP]), label="", color=:blue)
+	end
+	
+	# Mostrar la gráfica
+	display(plt_pc)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -4008,14 +4118,14 @@ version = "1.4.1+1"
 # ╠═24ab24ad-7819-404d-ac67-8388c67c6153
 # ╠═80ff100b-c076-4de2-a7d5-9e2707eb1a6a
 # ╠═e89dbfff-49d5-477f-9da7-a22087dd1469
-# ╟─89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
+# ╠═89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
 # ╟─951cf7f4-ca9a-4960-810f-da74c24cffea
-# ╟─1e895a64-5352-42ba-a80b-e0ffa0fbdf15
+# ╠═1e895a64-5352-42ba-a80b-e0ffa0fbdf15
 # ╟─5cdc3238-a1f2-422c-8303-bf677c25dead
 # ╟─d3bfbda6-ffb1-4dfe-9720-9bf204799b3d
 # ╟─86b03a8e-ccce-4396-8fb0-9ca40219d8b1
-# ╟─722a849b-d82e-4db3-bb61-810440666d81
-# ╟─1ba7d300-799c-4eb5-a929-7b84d420236a
+# ╠═722a849b-d82e-4db3-bb61-810440666d81
+# ╠═1ba7d300-799c-4eb5-a929-7b84d420236a
 # ╟─00c347a2-2067-491e-a5b6-ee9b92ab2daf
 # ╠═f764711d-47d3-492e-9aed-76bd29736493
 # ╠═72c968a1-1fb3-4025-a7bf-fa989204f08c
@@ -4044,14 +4154,17 @@ version = "1.4.1+1"
 # ╠═57e123f9-6f95-4603-b40a-a9d648780f28
 # ╠═8804391b-7ea5-4450-a3a2-32f5d0b32934
 # ╟─620c9aa3-68f7-4d4f-8607-c78819ebd487
-# ╟─191e5496-3731-4759-954c-19eeb4d091c3
+# ╠═191e5496-3731-4759-954c-19eeb4d091c3
 # ╟─9f0cab78-1520-48db-ab2f-acd9ccde4e67
-# ╟─f6725e4b-c500-4153-b661-12cd2823a432
-# ╟─4b005a19-254c-490a-ba92-d93790622b3a
+# ╠═f6725e4b-c500-4153-b661-12cd2823a432
+# ╠═4b005a19-254c-490a-ba92-d93790622b3a
 # ╟─2439ca8d-672d-49c6-b8b7-378144aeb8ab
 # ╠═1f5d1836-b9dc-409f-92f1-9db3f40ca4c1
 # ╠═ced04a0c-d6b0-4a2b-aed3-a91a6d66311c
 # ╠═17104d73-26eb-4bbd-8458-9b7cc812fb5f
 # ╠═3138a66d-46a9-48c6-961b-dd54fa7df762
+# ╟─885923d1-9908-49b2-b4a7-3936d07486ae
+# ╠═f431d001-efea-4049-990e-83c3b1eb54dc
+# ╠═85294b15-471d-4472-b2a4-dfa2a1067350
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
