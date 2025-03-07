@@ -1,19 +1,17 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
-    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
-    #! format: on
 end
 
 # ╔═╡ 152e94cd-96c5-4f3c-9a83-f75599ca9b82
@@ -21,84 +19,16 @@ using PlutoUI, DataFrames, CSV, Plots , Optim , DifferentialEquations, ForwardDi
 
 # ╔═╡ 92fa1010-ed46-11ef-1d61-cd3c8f06cc78
 md"""
-# **Proyecto: Modelado del Bienestar Urbano en Bogotá**
+# **Modelado del Bienestar Urbano en Bogotá**
 
 **Autor:** Luis Gomez, Simon Ramos , Tomas Rodrıguez  
 
 **Materia:** Modelos Matemáticos  
 
-**Fecha:** Febrero 2025  
-
-**Notebook en Julia con Pluto.jl**  
-
-## **Introducción**
-Este notebook tiene como objetivo desarrollar un modelo matemático que permita analizar el bienestar urbano en la ciudad de Bogotá. Se utilizarán datos históricos y ecuaciones diferenciales para modelar la evolución de variables clave relacionadas con infraestructura, servicios públicos y calidad de vivienda. Además, se implementará un análisis estadístico preliminar para identificar tendencias y correlaciones que puedan ayudar en la toma de decisiones urbanísticas.
-
-El proyecto está estructurado en distintas fases:
-
-## **Fase 1: Diseño y Planificación**
-### **Objetivo:**
-Desarrollar un modelo matemático para analizar el bienestar urbano en Bogotá, tomando en cuenta factores clave que influyen en la calidad de vida de sus habitantes.
-
-### **Variables Clave:**
-- **Inversión en infraestructura**: Recursos destinados a mejorar la infraestructura urbana.
-- **Cobertura de servicios públicos**: Acceso de la población a agua potable, electricidad e internet.
-- **Calidad de vivienda**: Condiciones habitacionales y acceso a vivienda digna.
-
-## **Fase 2: Recopilación y Análisis de Datos**
-### **Fuentes de Datos:**
-- **DANE**: Datos demográficos y de vivienda.
-- **Planeación Distrital**: Información sobre infraestructura urbana.
-- **Secretaría de Hacienda**: Datos de inversión pública en Bogotá.
-
-### **Estructura de Datos:**
-Se trabajará con datos históricos desde el año 2000 hasta el 2020, estructurados en tablas con información sobre inversión en infraestructura, cobertura de servicios y calidad de vivienda.
-
-## **Fase 3: Análisis Estadístico Preliminar**
-- Identificación de tendencias en inversión, calidad de servicios y vivienda.
-- Exploración de relaciones entre variables para evaluar su impacto en el bienestar urbano.
+**Fecha:** Marzo 2025  
 """
 
-# ╔═╡ 3cad062c-907f-45f5-8a62-bb4b290f408b
-begin
-# Cargar datos simulados desde CSV (usar rutas locales si es necesario)
-inversion_infra = CSV.read("inversion_infraestructura.csv", DataFrame)
-servicios_pub = CSV.read("servicios_publicos.csv", DataFrame)
-calidad_viv = CSV.read("calidad_vivienda.csv", DataFrame)
-datos_integrados = CSV.read("datos_integrados.csv", DataFrame)
-end
 
-# ╔═╡ 1268c09a-900c-4677-8d72-2e8fa1208fd3
-
-
-# ╔═╡ 898c9f7a-bc42-4c1e-afc9-630bd0eae97c
-begin
-# Gráfico 1: Inversión en Infraestructura vs Población
-plot(inversion_infra.Año, inversion_infra."Inversión en Infraestructura (COP)" ./ 1e9, label="Inversión Infraestructura (B COP)", xlabel="Año", ylabel="Valor", title="Inversión en Infraestructura y Población", lw=2)
-plot!(inversion_infra.Año, inversion_infra."Población Total" ./ 1e6, label="Población Total (millones)", lw=2)
-end
-
-# ╔═╡ 962e7bc8-b6e0-4090-8f1e-2a42da3312c2
-begin
-# Gráfico 2: Cobertura de Servicios Públicos
-plot(servicios_pub.Año, servicios_pub."Cobertura Agua (%)", label="Cobertura Agua (%)", lw=2)
-plot!(servicios_pub.Año, servicios_pub."Cobertura Energía (%)", label="Cobertura Energía (%)", lw=2)
-plot!(servicios_pub.Año, servicios_pub."Cobertura Internet (%)", label="Cobertura Internet (%)", lw=2, title="Cobertura de Servicios Públicos")
-end
-
-# ╔═╡ ca3a5596-fcfb-4553-a4a6-055c8fe06e8c
-begin
-# Gráfico 3: Déficit Habitacional y Viviendas en Buen Estado
-plot(calidad_viv.Año, calidad_viv."Déficit Habitacional (%)", label="Déficit Habitacional (%)", lw=2, linestyle=:dash, color=:red)
-plot!(calidad_viv.Año, calidad_viv."Viviendas en Buen Estado (%)", label="Viviendas en Buen Estado (%)", lw=2, linestyle=:solid, color=:green, title="Déficit Habitacional y Viviendas en Buen Estado")
-end
-
-# ╔═╡ ca389936-635f-40e5-a52d-ab18eaf11308
-begin
-#Gráfico 4: Relación entre Inversión en Infraestructura y Calidad de Vivienda
-scatter(datos_integrados."Inversión en Infraestructura (COP)" ./ 1e9, datos_integrados."Viviendas en Buen Estado (%)", xlabel="Inversión en Infraestructura (B COP)", ylabel="Viviendas en Buen Estado (%)", title="Relación entre Inversión en Infraestructura y Calidad de Vivienda", alpha=0.7, color=:blue)
-
-end
 
 # ╔═╡ d8c98714-9233-4207-b146-47e0d4bb1a7c
 md""" ## Ajuste de Parámetros y Validación del Modelo
@@ -110,48 +40,6 @@ En esta fase, ajustaremos los parámetros del modelo matemático utilizando mét
 3. **Validar el modelo** comparando las predicciones con los datos históricos.
 4. **Analizar la sensibilidad del modelo** para determinar qué variables tienen mayor impacto en los resultados.
 """
-
-# ╔═╡ 850d647e-7d12-4c3b-81c0-84517e454dd7
-md"""
-# **Modelado Matemático del Bienestar Urbano**
-
-Para modelar la evolución del bienestar urbano en Bogotá, se establecen ecuaciones diferenciales que representan la dinámica de inversión en infraestructura, bienestar y calidad de la vivienda.
-
-## **Definición del Modelo**
-En esta fase, implementaremos los distintos componentes del modelo matemático basado en ecuaciones diferenciales. El modelo abarca la población, el territorio y el bienestar urbano, con un enfoque en la interacción entre estos factores.
-
-### **Modelo de Población**
-La evolución de la población tiene en cuenta la natalidad, mortalidad e inmigración:
-
-$$\dfrac{dP}{dt} = r P \left(1 - \frac{P}{K} \right) + I$$
-
-Donde:
-
- $\cdot$ $P(t)$ es la población total en el tiempo  $t$.
-
- $\cdot$ $( r )$ es la tasa de crecimiento poblacional.
-
- $\cdot$ $( K )$  es la capacidad de carga urbana.
-
- $\cdot$ $( I )$ es la inmigración neta.
-
-### **Modelo de Territorio**
-La expansión urbana depende del crecimiento poblacional y del uso del suelo:
-
-$$\frac{dU}{dt} = \alpha P + \beta V - \gamma E$$
-
-Donde:
-
- $\cdot$ $U(t)$ es la huella urbana. 
-
- $\cdot$ $V(t)$ es la demanda de vivienda.
-
- $\cdot$ $E(t)$ es el área protegida o la estructura ecológica.
-
-
-
-"""
-
 
 # ╔═╡ 4fd010e4-9dfd-41bb-8c4d-ccdbe7665f87
 md"""
@@ -487,45 +375,6 @@ end
 
 # ╔═╡ dc6b9bad-e437-4aa6-8eaa-d634bb36a2c6
 p_opt = Optim.minimizer(result)
-
-# ╔═╡ 62a56ef5-694f-42fe-9325-013a6847bf84
-begin
-	# Gráfico de validación
-	plot(datos_integrados.Año, datos_integrados."Viviendas en Buen Estado (%)", label="Datos Reales", lw=2)
-	plot!(datos_integrados.Año, p_opt[1] .* datos_integrados.Año .+ p_opt[2], 
-	label="Modelo Ajustado", linestyle=:dash, lw=2, color=:red)
-end
-
-# ╔═╡ e282a24e-bb12-48a3-b8dc-c2e1b406bfce
-"""**Resultados:**
-- Parámetros óptimos ajustados: $(p_opt)
-- Validación del modelo con datos históricos.
-"""
-
-# ╔═╡ 3dc09f50-9b03-44cc-bb68-5abe24973d35
-begin
-	
-# Definir diferentes escalas para probar
-	y0 = [inversion_infra[1, "Inversión en Infraestructura (COP)"], 
-              datos_integrados[1, "Viviendas en Buen Estado (%)"]]
-escalas = Dict(
-    "Original" => (y0, p0),
-    "Reducida" => ([y0[1] / 10, y0[2] / 10], [p0[1] / 10, p0[2] / 10, p0[3] / 10]),
-    "Aumentada" => ([y0[1] * 10, y0[2] * 10], [p0[1] * 10, p0[2] * 10, p0[3] * 10])
-)
-
-for (nombre, (y0_mod, p0_mod)) in escalas
-    println("Probando con escala: ", nombre)
-
-    # Definir el problema ODE con la escala modificada
-    prob_test = ODEProblem(modelo_bienestar, y0_mod, (0.0, 20.0), p0_mod)
-    sol_test = solve(prob_test, Tsit5())
-
-    # Graficar los resultados
-    plot(sol_test, title="Simulación con Escala: $nombre", label=["Población" "Bienestar"])
-end
-
-end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2776,14 +2625,7 @@ version = "1.4.1+2"
 # ╔═╡ Cell order:
 # ╠═152e94cd-96c5-4f3c-9a83-f75599ca9b82
 # ╟─92fa1010-ed46-11ef-1d61-cd3c8f06cc78
-# ╠═3cad062c-907f-45f5-8a62-bb4b290f408b
-# ╠═1268c09a-900c-4677-8d72-2e8fa1208fd3
-# ╠═898c9f7a-bc42-4c1e-afc9-630bd0eae97c
-# ╠═962e7bc8-b6e0-4090-8f1e-2a42da3312c2
-# ╠═ca3a5596-fcfb-4553-a4a6-055c8fe06e8c
-# ╠═ca389936-635f-40e5-a52d-ab18eaf11308
 # ╟─d8c98714-9233-4207-b146-47e0d4bb1a7c
-# ╟─850d647e-7d12-4c3b-81c0-84517e454dd7
 # ╟─4fd010e4-9dfd-41bb-8c4d-ccdbe7665f87
 # ╟─142f83e0-f7c2-4f67-9618-47d158c47dca
 # ╟─f146fb5f-8c4c-447a-a616-293424f6fda0
@@ -2815,8 +2657,5 @@ version = "1.4.1+2"
 # ╠═af4b8b09-0596-4fd9-9a20-a6a4569884ed
 # ╠═c3ccd8e9-75eb-4f40-b67a-66487aaf80b6
 # ╠═dc6b9bad-e437-4aa6-8eaa-d634bb36a2c6
-# ╠═62a56ef5-694f-42fe-9325-013a6847bf84
-# ╠═e282a24e-bb12-48a3-b8dc-c2e1b406bfce
-# ╠═3dc09f50-9b03-44cc-bb68-5abe24973d35
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
