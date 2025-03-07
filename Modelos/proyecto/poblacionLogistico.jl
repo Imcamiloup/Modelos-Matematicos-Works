@@ -152,7 +152,6 @@ $$\frac{dD}{dt} = -\nu \frac{dU}{dt}.$$
 """
 
 # ╔═╡ f764711d-47d3-492e-9aed-76bd29736493
-
 begin
 	# Extraer datos observados para las variables territoriales
 	U_obs = df_territorio[!, "Huella Urbana"]
@@ -163,7 +162,7 @@ end
 
 # ╔═╡ 72c968a1-1fb3-4025-a7bf-fa989204f08c
 # --------------------------------------------------
-# Modelo de territorio (enfoque desacoplado)
+# Modelo de territorio
 # Variables del sistema: U(t), E(t), V(t), D(t)
 # Parámetros a estimar: par = [α, β, γ, δ, κ, ν]
 # Ecuaciones:
@@ -185,10 +184,6 @@ function modeloTerritorio(u, par, t)
 end
 
 # ╔═╡ 46c31ba6-bc97-4986-8744-b0846010cb93
-# --------------------------------------------------
-# Función de error para la optimización
-# Se integra el sistema y se compara con los datos observados
-# --------------------------------------------------
 function residuoTerritorio(par)
   # Condiciones iniciales tomadas de los datos (en t = t_data[1])
   u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
@@ -213,10 +208,7 @@ function residuoTerritorio(par)
 end
 
 # ╔═╡ 88ea74a2-5890-46f4-bcb1-9c272222c720
-# --------------------------------------------------
-# Optimización de parámetros territoriales
-# Se define una estimación inicial para [α, β, γ, δ, κ, ν]
-# --------------------------------------------------
+# [α, β, γ, δ, κ, ν]
 # par_inicial = [1e-3, 1e-5, 1e-5, -1e-5, 4.0, 1.0]
 par_inicial = [1e-3, 1e-3, 1e-3, -1e-5, 2.0, 1.0]
 
@@ -237,9 +229,6 @@ end
 
 # ╔═╡ 2022ed7c-0efd-4db3-910a-79a09b41651f
 begin
-	# --------------------------------------------------
-	# Resolución del sistema territorial con parámetros estimados
-	# --------------------------------------------------
 	u0 = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
 	tspan = (t_data[1], t_data[end])  # Aseguramos que sea una tupla de 2 elementos
 	prob = ODEProblem((u, par, t) -> modeloTerritorio(u, par, t),
@@ -308,12 +297,12 @@ begin
 # Datos observados
 P_obs = df_poblacion[!, "población"]
 
-# Condiciones iniciales para el modelo acoplado:
+# Condiciones iniciales:
 # u0 = [P(0), U(0), E(0), V(0), D(0)]
 u0_D = [P_obs[1], U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
 
 # --------------------------------------------------
-# Modelo Acoplado: población y territorio
+# Modelo: población y territorio
 # Estado: u = [P, U, E, V, D]
 # Parámetros: par = [r, K, α, β, γ, δ, κ, ν]
 #   - Población: dP/dt = r * P * (1 - P/K)
@@ -340,9 +329,7 @@ function modeloCompleto(u, par, t)
 end
 
 # --------------------------------------------------
-# Función de error para la optimización del modelo acoplado
-# Se integran las ecuaciones y se calcula la suma de errores cuadrados
-# entre las soluciones simuladas y los datos observados.
+# Función de error para la optimización del modelo
 # --------------------------------------------------
 function residuoCompleto(par_D)
   tspan = (t_data[1], t_data[end])
@@ -350,7 +337,6 @@ function residuoCompleto(par_D)
                     u0_D, tspan, par_D)
   sol = solve(prob, Tsit5(), saveat=t_data)
   
-  # Extraer las soluciones simuladas
   P_sim = [sol[i][1] for i in 1:length(sol)]
   U_sim = [sol[i][2] for i in 1:length(sol)]
   E_sim = [sol[i][3] for i in 1:length(sol)]
@@ -397,10 +383,6 @@ end
 
 # ╔═╡ 01abb6ec-f709-49cc-b67c-7c3aa1914827
 begin
-	# --------------------------------------------------
-	# Graficar cada variable en un eje distinto (subplots)
-	# Se usa un layout de 3 filas para acomodar las 5 variables
-	# --------------------------------------------------
 	anim = @animate for i in 1:length(t_data)
 	l1 = @layout [a; b; c; d; e]
 	p1 = plot(layout = l1, size=(1000,1400))
