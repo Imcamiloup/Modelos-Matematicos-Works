@@ -4,6 +4,16 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 152e94cd-96c5-4f3c-9a83-f75599ca9b82
 using PlutoUI, DataFrames, CSV, Plots , Optim , DifferentialEquations, ForwardDiff
 
@@ -55,6 +65,9 @@ servicios_pub = CSV.read("servicios_publicos.csv", DataFrame)
 calidad_viv = CSV.read("calidad_vivienda.csv", DataFrame)
 datos_integrados = CSV.read("datos_integrados.csv", DataFrame)
 end
+
+# ╔═╡ 1268c09a-900c-4677-8d72-2e8fa1208fd3
+
 
 # ╔═╡ 898c9f7a-bc42-4c1e-afc9-630bd0eae97c
 begin
@@ -127,30 +140,229 @@ $$\frac{dU}{dt} = \alpha P + \beta V - \gamma E$$
 
 Donde:
 
- $\cdot$ $U(t)$ es la huella urbana.
+ $\cdot$ $U(t)$ es la huella urbana. 
 
  $\cdot$ $V(t)$ es la demanda de vivienda.
 
  $\cdot$ $E(t)$ es el área protegida o la estructura ecológica.
 
-### **Modelo de Bienestar Urbano**
-Este modelo relaciona la inversión en infraestructura, la cobertura de servicios y la calidad de la vivienda:
 
-$$\frac{dS}{dt} = \theta T - \zeta P$$
 
-$$\frac{dH}{dt} = \xi S - \lambda P$$
+"""
+
+
+# ╔═╡ 4fd010e4-9dfd-41bb-8c4d-ccdbe7665f87
+md"""
+## **Simulación Interactiva del Recurso Hídrico**
+En este modelo, analizamos la evolución del agua almacenada en un embalse considerando:
+
+- **Las precipitaciones y caudales afluentes** como entradas.
+- **El consumo de agua por la población** como salida.
+
+### **🔹 Parámetros Ajustables**
+Puedes modificar los siguientes parámetros mediante los **deslizadores**:
+
+- **Eficiencia de captación (α):** Representa la fracción del agua entrante que realmente se almacena. Un valor alto significa mayor retención de agua.
+- **Ahorro de agua (β):** Indica cuánto ahorro hay en el consumo. Un valor de **0** significa consumo normal, mientras que **1** representa un ahorro total.
+
+### **📈 Simulación Numérica**
+La ecuación diferencial que modela la cantidad de agua almacenada en el tiempo es:
+
+$$\frac{dA}{dt} = \alpha \cdot R(t) - (1 - \beta) \cdot N \cdot C_{\text{prom}}(t)$$
 
 Donde:
 
- $\cdot$ $S(t)$ representa los servicios públicos.
+  $A(t)$: Volumen de agua potable almacenada en el tiempo $t$ (millones de litros). 
 
- $\cdot$ $T(t)$ es la inversión en infraestructura.
+  $R(t)$: Tasa de aporte de agua (precipitaciones y afluentes) en millones de litros por mes.  
 
- $\cdot$ $H(t)$ es la calidad de la vivienda.
+ $C_{\text{prom}}(t)$: **Consumo promedio mensual por persona** en litros por mes.  
 
-Estos modelos se integrarán en un sistema de ecuaciones diferenciales para analizar la dinámica del bienestar urbano en Bogotá.
+ $N$: **Número de personas** en la región de estudio.  
+
+ $\alpha$: **Eficiencia de captación** del agua entrante ($0 \leq \alpha \leq 1$). 
+
+ $\beta$: **Ahorro de agua** ($0 \leq \beta \leq 1$), donde:  
+
+   $\beta = 0$ significa **sin ahorro** (el consumo es el esperado).  
+
+   $\beta = 0.2$ significa **reducción del 20%** en el consumo.  
+
+   $\beta = 1$ significa **ahorro total**, el consumo no afecta el almacenamiento.
+
+### **Definición de Parámetros**
+ $R(t)$ puede modelarse como una función dependiente del tiempo, por ejemplo:
+
+  $$R(t) = R_0 + A \sin(\omega t)$$ 
+
+Donde $R_0$ es la tasa base de entrada de agua y el término sinusoidal representa variaciones estacionales.
+  
+  $C(t)$ puede definirse como:
+  $$C(t) = C_0 + \gamma t$$
+  Representando un crecimiento progresivo del consumo de agua debido al aumento de la demanda.
+
+  ## **Condición Inicial**
+La cantidad de agua potable disponible en enero de 2017 es de **220 millones de litros**, por lo que la condición inicial es:
+$$A(0) = 220$$
+
+## **Aplicaciones del Modelo**
+Este modelo permite:
+- Evaluar la sostenibilidad del recurso hídrico bajo distintos escenarios climáticos y de consumo.
+- Ajustar políticas de gestión del agua en función de proyecciones de lluvia y demanda.
+- Simular cambios en la eficiencia de captación $(\alpha)$ o en la eficiencia del consumo $(\beta)$.
+
+## **Extensiones Posibles**
+- Introducción de términos estocásticos para modelar variabilidad climática.
+- Implementación en 
 """
 
+
+# ╔═╡ f146fb5f-8c4c-447a-a616-293424f6fda0
+md"""**Eficiencia de captación:** $α$"""
+
+# ╔═╡ ac8ba0a3-6a3b-4a8c-80b0-814938144b0f
+
+@bind α Slider(0:0.05:1, show_value=true, default=0.5)
+
+
+# ╔═╡ 5bd0b412-86e3-4178-84cc-b56c370a6b01
+
+md"""**Ahorro de Agua:** $α$"""
+
+# ╔═╡ f3d02951-5a5e-48e2-a919-ba642e50ac2e
+@bind β Slider(0:0.05:1, show_value=true, default=0.5)  
+
+# ╔═╡ 142f83e0-f7c2-4f67-9618-47d158c47dca
+md"""
+### **Simulación Interactiva del Recurso Hídrico**
+Ajusta los parámetros con los deslizadores:
+
+- **Eficiencia de captación (α):** $α
+- **Ahorro de agua (β):** $β
+"""
+
+# ╔═╡ 1820fcd5-276c-4bbf-ae6d-3d69a96b9f6b
+md"""
+#### Definir parametros fijos
+"""
+
+# ╔═╡ 925c9f3d-f2c7-4a70-ba0f-451c9ac758cd
+begin
+	# 📌 Definir parámetros fijos
+N = 8_000_000  # Población
+C0 = 85  # Consumo base (litros/persona/mes)
+γ = 0.01  # Crecimiento del consumo en el tiempo
+R0 = 220  # Aporte base de agua (millones de litros)
+A_ampl = 18  # Variabilidad climática
+ω = 2π / 24  # Frecuencia anual
+end
+
+# ╔═╡ 2d00ed69-1057-45cb-bdad-f58fe1c8684c
+md"""
+#### Función de entrada de agua con variabilidad estacional
+"""
+
+# ╔═╡ f5daf2ca-2a13-45b5-a07e-8c948858ad3c
+R(t) = R0 + A_ampl * sin(ω * t)
+
+# ╔═╡ f336bd54-d06b-4112-b97c-ab76ed8a0e2a
+md"""
+#### Definir la ecuacion diferencial
+"""
+
+# ╔═╡ 6d8c14b3-ee8e-4ace-9e2a-8fc2a108ef4a
+function recurso_hidrico!(dA, A, p, t)
+    C_prom = C0 + γ * t
+    dA[1] = α * R(t) - (1 - β) * N * C_prom / 1e6  # Conversión a millones de litros
+end
+
+# ╔═╡ 0c7942a7-84ee-4e0c-8413-88d1b355b8bc
+md"""
+#### Condición Inicial
+"""
+
+# ╔═╡ 76514692-644d-4fe4-b046-52f4c19c488c
+A0 = [220.0]
+
+# ╔═╡ 57eb1ff5-9e64-4d3b-8a55-c46fcf2b90d1
+md"""
+#### Resolver la EDO
+"""
+
+# ╔═╡ 90931003-d68f-4648-935e-dd856afc5d9b
+begin
+tspan2 = (0.0, 60.0)
+prob = ODEProblem(recurso_hidrico!, A0, tspan2)
+sol = solve(prob, Tsit5())	
+end
+
+# ╔═╡ c00c94b5-a348-41ae-87aa-7884cbe7321e
+md"""
+#### Graficar los resultados
+"""
+
+# ╔═╡ e4185bbf-e12d-4359-9939-0d852e4127c7
+begin
+	plot(sol.t, [u[1] for u in sol.u], xlabel="Tiempo (meses)", ylabel="Agua almacenada (millones de litros)",
+     title="Evolución del recurso hídrico con α = $α y β = $β", legend=false, lw=2)
+
+end
+
+# ╔═╡ 37e43428-0595-4355-b627-87b51842b3a6
+begin
+datos_consumo = CSV.read("API/dato-abierto-consumopromaps-alcaldia..csv",DataFrame)
+end
+
+# ╔═╡ 58c8f210-df79-49db-86cb-b4f980275a9a
+begin
+    #Función mejorada para conversión segura
+    function convertir_a_float(valor)
+        if valor isa Missing || valor == "" || valor == " "  # Manejar valores vacíos o missing
+            return missing
+        else
+            return try
+                parse(Float64, replace(valor, "," => "."))  # Reemplazar coma por punto y convertir
+            catch
+                missing  # Si hay un error en la conversión, devolver missing
+            end
+        end
+    end
+
+    # Leer el archivo CSV
+    archivo_csv = "API/dato-abierto-consumopromaps-alcaldia..csv"
+    datos = CSV.read(archivo_csv, DataFrame)
+
+    # Convertir todas las columnas a Float64
+    for col in names(datos)
+        datos[!, col] = convertir_a_float.(datos[!, col])
+    end
+
+    # Calcular el total de cada fila
+    totales_filas = [sum(skipmissing(row)) for row in eachrow(datos)]
+
+    # Mostrar los totales
+    println("Totales de cada fila: ", totales_filas)
+
+
+
+end
+
+
+# ╔═╡ 3d81fe64-c8c2-4f2f-ba55-3cd7ab74a46f
+meses = ["Ene-2017",        "Feb-2017",        "Mar-2017",        "Abr-2017",       
+	    "May-2017",        "Jun-2017",        "Jul-2017",       "Ago-2017",              "Sep-2017",        "Oct-2017",        "Nov-2017",        "Dic-2017",        
+		"Ene-2018",        "Feb-2018",        "Mar-2018",        "Abr-2018",
+        "May-2018",        "Jun-2018",        "Jul-2018",        "Ago-2018",
+        "Sep-2018",        "Oct-2018",        "Nov-2018",        "Dic-2018",
+        "Ene-2019",        "Feb-2019",        "Mar-2019",        "Abr-2019",
+        "May-2019",        "Jun-2019",        "Jul-2019",        "Ago-2019",
+        "Sep-2019",        "Oct-2019",        "Nov-2019",        "Dic-2019",
+        "Ene-2020",        "Feb-2020",        "Mar-2020",        "Abr-2020",
+        "May-2020",        "Jun-2020"]
+
+# ╔═╡ d83bac51-c449-4ea5-8a5a-0ceb6621cb28
+# Crear el gráfico
+    plot(meses, totales_filas, xlabel="Mes", ylabel="Total de Consumo de Agua", title="Consumo de Agua por Mes", legend=false, lw=2)
 
 # ╔═╡ e54576d9-f01f-4176-aef8-b7da5d6d425b
 	# Definir ecuaciones diferenciales para el modelo
@@ -2563,12 +2775,35 @@ version = "1.4.1+2"
 # ╠═152e94cd-96c5-4f3c-9a83-f75599ca9b82
 # ╟─92fa1010-ed46-11ef-1d61-cd3c8f06cc78
 # ╠═3cad062c-907f-45f5-8a62-bb4b290f408b
+# ╠═1268c09a-900c-4677-8d72-2e8fa1208fd3
 # ╠═898c9f7a-bc42-4c1e-afc9-630bd0eae97c
 # ╠═962e7bc8-b6e0-4090-8f1e-2a42da3312c2
 # ╠═ca3a5596-fcfb-4553-a4a6-055c8fe06e8c
 # ╠═ca389936-635f-40e5-a52d-ab18eaf11308
 # ╟─d8c98714-9233-4207-b146-47e0d4bb1a7c
 # ╟─850d647e-7d12-4c3b-81c0-84517e454dd7
+# ╟─4fd010e4-9dfd-41bb-8c4d-ccdbe7665f87
+# ╟─142f83e0-f7c2-4f67-9618-47d158c47dca
+# ╟─f146fb5f-8c4c-447a-a616-293424f6fda0
+# ╟─ac8ba0a3-6a3b-4a8c-80b0-814938144b0f
+# ╟─5bd0b412-86e3-4178-84cc-b56c370a6b01
+# ╟─f3d02951-5a5e-48e2-a919-ba642e50ac2e
+# ╟─1820fcd5-276c-4bbf-ae6d-3d69a96b9f6b
+# ╠═925c9f3d-f2c7-4a70-ba0f-451c9ac758cd
+# ╟─2d00ed69-1057-45cb-bdad-f58fe1c8684c
+# ╠═f5daf2ca-2a13-45b5-a07e-8c948858ad3c
+# ╠═f336bd54-d06b-4112-b97c-ab76ed8a0e2a
+# ╠═6d8c14b3-ee8e-4ace-9e2a-8fc2a108ef4a
+# ╟─0c7942a7-84ee-4e0c-8413-88d1b355b8bc
+# ╠═76514692-644d-4fe4-b046-52f4c19c488c
+# ╟─57eb1ff5-9e64-4d3b-8a55-c46fcf2b90d1
+# ╠═90931003-d68f-4648-935e-dd856afc5d9b
+# ╟─c00c94b5-a348-41ae-87aa-7884cbe7321e
+# ╠═e4185bbf-e12d-4359-9939-0d852e4127c7
+# ╠═37e43428-0595-4355-b627-87b51842b3a6
+# ╠═58c8f210-df79-49db-86cb-b4f980275a9a
+# ╠═3d81fe64-c8c2-4f2f-ba55-3cd7ab74a46f
+# ╠═d83bac51-c449-4ea5-8a5a-0ceb6621cb28
 # ╠═e54576d9-f01f-4176-aef8-b7da5d6d425b
 # ╠═3c76736a-c9cd-40e6-9061-4df0c01db56c
 # ╠═0b896d30-e9b3-474b-85ed-378776dbf6cc
