@@ -5,7 +5,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 8108fd90-e1ba-11ef-2220-c34f038a1f2d
-using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames
+using DifferentialEquations, Optim, Plots, LinearAlgebra, CSV, DataFrames, 	GLM, Interpolations, NumericalIntegration
 
 # ╔═╡ 4014a39a-863e-4d4c-9255-80ade3a3fe21
 html"""
@@ -131,6 +131,9 @@ begin
 	ylabel!("Población")
 	title!("Ajuste del Modelo Logístico con Migración")
 end
+
+# ╔═╡ e89dbfff-49d5-477f-9da7-a22087dd1469
+
 
 # ╔═╡ 89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
 html"""
@@ -634,6 +637,234 @@ begin
 	gif(anim, "animacion_variables.gif", fps=20)
 end
 
+# ╔═╡ 8657b106-4793-4660-b8e8-35d67dd87741
+plot(t_data, U_obs, xlabel="Año (t)", ylabel="U(t)", label="U observado", title="Evolución de U(t) a lo largo del tiempo", marker=:circle, linewidth=2)
+
+# ╔═╡ a3219ce6-dbb1-410f-b10d-2043992d4c2b
+begin 
+
+	# Datos
+
+	t = 1:length(U_obs)
+	
+	# Ajuste polinomial (grado 3)
+	X = hcat(t.^0, t.^1, t.^2, t.^3)  # Matriz de diseño
+	model = lm(X, U_obs)  # Ajuste lineal
+	U_poly = predict(model)
+	
+	# Ajuste de spline cúbico
+	spline = cubic_spline_interpolation(t, U_obs)
+	U_spline = spline.(t)
+	
+	# Graficar
+	plot(t, U_obs, label="Datos observados", marker=:circle)
+	plot!(t, U_poly, label="Ajuste polinomial (grado 3)", linewidth=2)
+	plot!(t, U_spline, label="Ajuste de spline cúbico", linewidth=2)
+	xlabel!("Año (t)")
+	ylabel!("U(t)")
+	title!("Ajuste de modelos a U(t)")
+end
+
+# ╔═╡ 6201ed7e-de40-4645-bdc2-f21625083947
+begin
+	
+	# Aproximación numérica de la derivada dU/dt
+	dU_dt = diff(U_obs) ./ diff(t_data)
+	
+	# Estimar N(t) usando N(t) = (dU/dt) / γ
+	γ_guess = 7.2113475189179335  # Valor inicial para γ (ajustar más adelante)
+	N_est = dU_dt / γ_guess
+	N_est = [16600; N_est]  # Asumiendo que N(1) = 0
+end
+
+# ╔═╡ f8237f16-5487-4e7b-a5ba-4492a5bba492
+begin
+	function modelo!(u, p, t)
+	    D, U, dudt = u
+	    α, γ = p
+	    dD = -α/γ * D * dudt  # dD/dt
+	    dU = dudt             # dU/dt
+	    dUdT = (α * D - γ) * dudt  # d²U/dt²
+		return [dD, dU, dUdT]
+	end
+end
+
+# ╔═╡ 9559c629-c11c-49c8-b202-412bad229a22
+begin
+	
+	# Función para resolver el modelo y calcular el error
+	function error_sir(params)
+	    α, γ = params
+		dU0 = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])  # Aproximación de dU/dt en t=0
+	    u0 = [D_obs[1], U_obs[1], dU0]
+	    p = (α, γ)
+	    tspan = (t_data[1], t_data[end])
+		
+	    prob = ODEProblem((u, par, t) -> modelo!(u, par, t), u0, tspan, p)
+
+		
+		# Resolver el modelo en los puntos de tiempo de los datos
+	    sol = solve(prob, saveat=t_data) 
+	        # Extraer las predicciones del modelo
+	    D_pred = [u[2] for u in sol.u]  # Predicciones de D(t)
+    	U_pred = [u[1] for u in sol.u]  # Predicciones de U(t)
+		
+	    # Calcular el error cuadrático medio
+	    error_D = sum((D_pred .- D_obs).^2)  # Error en D(t)
+	    error_U = sum((U_pred .- U_obs).^2)  # Error en U(t)
+	
+	    # Error total (suma de errores cuadrados)
+	    error_total = error_D + error_U
+		
+	    return error_total
+
+	end
+		
+end
+
+# ╔═╡ 80d9764f-6d15-4e07-97b1-8c88768bb375
+begin
+	par_inicial_sir = [0.1, 0.05]  # [α, γ]
+	lower_bounds = [0.0, 0.0]   # Límites inferiores para α y γ
+	upper_bounds = [Inf, Inf]  # Límites superiores para α y γ
+	opt_result_sir = Optim.optimize(error_sir, lower_bounds, upper_bounds, par_inicial_sir, NelderMead())
+	par_est_sir = Optim.minimizer(opt_result_sir)
+
+	println(opt_result_sir)
+	println("Parámetros territoriales estimados:")
+	println("α = ", par_est_sir[1])
+	println("γ = ", par_est_sir[2])
+
+end
+
+
+# ╔═╡ c1963cb7-fcc6-4e6e-a4e2-b69bcfaa9054
+begin
+	# --------------------------------------------------
+	# Resolución del sistema territorial con parámetros estimados
+	# --------------------------------------------------
+
+	function sir_estimado(p)
+		dU0 = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])  # Aproximación de dU/dt en t=0
+	    u0 = [D_obs[1], U_obs[1], dU0]
+	    tspan = (t_data[1], t_data[end])
+	    prob = ODEProblem(modelo!, u0, tspan, p)
+		
+		# Resolver el modelo en los puntos de tiempo de los datos
+	    sol = solve(prob, saveat=t_data) 
+	        # Extraer las predicciones del modelo
+	    D_pred = sol[1, :]  # Predicciones de D(t)
+	    U_pred = sol[2, :]  # Predicciones de U(t)
+		return D_pred, U_pred
+	end
+end
+
+# ╔═╡ 063037e9-6b50-4f59-a967-db0efad95444
+begin
+	# --------------------------------------------------
+	# Graficar resultados (observados vs simulados)
+	# --------------------------------------------------
+	
+	function graficar_sir(params)
+		D_sim, U_sim = sir_estimado(params)
+		println("Tamaño de D_sim: ", length(D_sim))
+		println("D_sim: ", D_sim)
+	    println("U_sim: ", U_sim)
+	    println("Tamaño de U_sim: ", length(U_sim))
+		plt_sir = plot(t_data, U_obs, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+		plot!(plt_sir, t_data, D_obs, lw=2, linestyle=:dash, label="Área disponible (obs)")
+		
+		plot!(plt_sir, t_data, U_sim, lw=2, label="Huella Urbana (sim)")
+		plot!(plt_sir, t_data, D_sim, lw=2, label="Área disponible (sim)")
+		xlabel!("Tiempo (años)")
+		ylabel!("Valor de la variable")
+		title!("Comparación: Datos observados vs. Simulación del modelo territorial")
+	end
+end
+
+# ╔═╡ 2dd83b95-ee3f-4e9e-b84c-2193f0389d48
+graficar_sir(par_est_sir)
+
+# ╔═╡ 6aa098d5-b6ff-4879-9904-0dce564e2211
+graficar_sir([0.0000001, 0.02])
+
+# ╔═╡ 4d6747f3-00c7-4ba0-8eca-c8f92b52f2e9
+begin
+	# --------------------------------------------------
+	# Graficar resultados (observados vs simulados)
+	# --------------------------------------------------
+	
+	# D_sim, U_sim = sir_estimado()
+	println("Tamaño de D_sim: ", length(D_sim))
+	println("D_sim: ", D_sim)
+    println("U_sim: ", U_sim)
+    println("Tamaño de U_sim: ", length(U_sim))
+	plt_sir2 = plot(t_data, U_sim/100, lw=2, linestyle=:dash, label="Huella Urbana (obs)")
+	plot!(plt_sir2, t_data, D_sim/100, lw=2, linestyle=:dash, label="Área disponible (obs)")
+	
+	# plot!(plt_sir, t_data, U_sim, lw=2, label="Huella Urbana (sim)")
+	# plot!(plt_sir, t_data, D_sim, lw=2, label="Área disponible (sim)")
+	xlabel!("Tiempo (años)")
+	ylabel!("Valor de la variable")
+	title!("Comparación: Datos observados vs. Simulación del modelo territorial")
+end
+
+# ╔═╡ 468826d9-b5c1-4d46-9606-0c1e5981575e
+begin
+	function modelo2!(du, u, p, t)
+	    D, U = u
+	    α = p[1]
+	    du[1] = -α * D * (1 - D - U)  # dD/dt
+	    du[2] = 1 - D - U              # dU/dt
+	end
+end
+
+# ╔═╡ b7dc1b7e-a547-473e-aff9-d14a1fcc1fdd
+begin
+	
+	# Función para resolver el modelo y calcular el error
+	function error_sir2(params)
+	    α = params[1]
+		
+	    u0 = [D_obs[1], U_obs[1]]
+	    p = (α)
+	    tspan = (t_data[1], t_data[end])
+	    prob = ODEProblem(modelo2!, u0, tspan, p)
+
+		
+		# Resolver el modelo en los puntos de tiempo de los datos
+	    sol = solve(prob, saveat=t_data) 
+	        # Extraer las predicciones del modelo
+	    D_pred = [u[1] for u in sol.u]  # Predicciones de D(t)
+    	U_pred = [u[2] for u in sol.u]  # Predicciones de U(t)
+
+		println("Tamaño de D_sim: ", length(D_pred))
+	    println("Tamaño de U_sim: ", length(U_pred))
+		
+	    # Calcular el error cuadrático medio
+	    error_D = sum((D_pred .- D_obs).^2)  # Error en D(t)
+	    error_U = sum((U_pred .- U_obs).^2)  # Error en U(t)
+	
+	    # Error total (suma de errores cuadrados)
+	    error_total = error_D + error_U
+	    return error_total
+
+	end
+		
+end
+
+# ╔═╡ f4d70569-7cab-4ab3-b9a9-03f8e66b42f4
+begin
+	par_inicial_sir2 = [0.01]  # [α, γ]
+	opt_result_sir2 = Optim.optimize(error_sir2, lower_bounds, upper_bounds, par_inicial_sir2, NelderMead())
+	par_est_sir2 = Optim.minimizer(opt_result_sir2)
+
+	println(opt_result_sir2)
+	println("Parámetros territoriales estimados:")
+	println("α = ", par_est_sir2[1])
+
+end
+
 # ╔═╡ 57e123f9-6f95-4603-b40a-a9d648780f28
 md"""
 ### 1.2.2. Modelo SIR
@@ -657,6 +888,20 @@ $$\frac{dN}{dt} = \alpha D(t)N(t) - \gamma N(t)$$
 *Nota: El primer modelo toma la dinámica de la población mientras el segundo no. ¿Es posible incluir esta en el modelo 2? ¿Es conveniente? Tampoco se captura el área protegida en el segundo.*
 
 Para este componente hay datos de una considerable cantidad de años (separados por intervalos de tiempo) para la huella urbana, área protegida y la demanda de viviendas. Del suelo en desarrollo no encontramos datos por lo que puede ser más práctico un modelo que solo considere los compartimentos $D$ y $U$, en también se presenta esta simplificación.
+"""
+
+# ╔═╡ 8804391b-7ea5-4450-a3a2-32f5d0b32934
+md"""
+### 1.2.2. Modelo SIR
+
+
+
+$$\frac{dD}{dt} = -\frac{\alpha}{\gamma}D(t) \frac{dU}{dt}$$
+
+$$\frac{d^2U}{dt^2} = (\alpha D(t) - \gamma) \frac{dU}{dt}$$
+
+
+
 """
 
 # ╔═╡ 620c9aa3-68f7-4d4f-8607-c78819ebd487
@@ -744,13 +989,122 @@ html"""
 <h3>Implementación del modelo</h3>
 """
 
+# ╔═╡ 1f5d1836-b9dc-409f-92f1-9db3f40ca4c1
+begin
+
+	# function modeloT_params(u, par, t)
+	#   α, β, γ, δ, κ, ν = [-0.00018954163479880512, 
+	# 	0.001211966263261876,
+	# 	0.019042918813165898,
+	# 	-0.0039867402564575626,
+	# 	2.6759783795361796,
+	# 	0.712744354419162]
+	#   U, E, V, D = u
+	#   P = sol_P(t)[1]
+	#   dP = dP_(t)
+	#   dU = α * P + β * V - γ * E
+	#   dE = -δ * U
+	#   dV = (1 / κ) * dP
+	#   dD = -ν * dU
+	#   return [dU, dE, dV, dD]
+	# end
+
+
+	# # u0_intuitivo = [U_obs[1], E_obs[1], V_obs[1], D_obs[1]]
+	# # Asegurarse de que tspan sea una tupla de dos elementos:
+	# # tspan_intuitivo = (t_data[1], t_data[end])
+
+	
+	# # prob_intuitivo = ODEProblem(modeloT_params, u0_intuitivo, tspan_intuitivo)
+	# solp = solve(prob_intuitivo)
+	
+	# # Graficar
+	# plot(solp, vars=(1, 2), xlabel="x", ylabel="y", title="Diagrama de fase 2D", legend=false)
+end
+
+# ╔═╡ ced04a0c-d6b0-4a2b-aed3-a91a6d66311c
+begin
+
+	function modeloSIR_params(u, par, t)
+	    D, N= u
+	    α, γ = [0.0000001, 0.02]
+	    dD = -α * D * N  # dD/dt
+	    dN = α * D * N  - γ * N          # dN/dt
+		return [dD, dN]
+
+	end
+
+	dUdT = (U_obs[2] - U_obs[1]) / (t_data[2] - t_data[1])
+
+	u0_sir = [U_obs[1], dUdT/0.02]
+	# Asegurarse de que tspan sea una tupla de dos elementos:
+	tspan_sir = (t_data[1], t_data[end])
+
+	
+	prob_sir = ODEProblem(modeloSIR_params, u0_sir, tspan_sir)
+	sol_sir = solve(prob_sir)
+	
+	# Graficar
+	plot(sol_sir, vars=(1, 2), xlabel="x", ylabel="y", title="Diagrama de fase 2D", legend=false)
+end
+
+# ╔═╡ 17104d73-26eb-4bbd-8458-9b7cc812fb5f
+begin
+	println(u0_sir)
+	println(tspan_sir)
+end
+
+# ╔═╡ 3138a66d-46a9-48c6-961b-dd54fa7df762
+begin
+
+	
+	# Definir el sistema de ecuaciones
+	function modelo_intuitivo(u, p, t)
+	    # Parámetros
+
+
+		α, β, γ, δ, κ, ν, ρ, k1, k2, C1   = [-0.00018954163479880512, 
+		0.001211966263261876,
+		0.019042918813165898,
+		-0.0039867402564575626,
+		2.6759783795361796,
+		0.712744354419162, 0.00018954163479880512, 0.019042918813165898, 0.0290329188147231, 1 ]
+	    # Variables del sistema
+	    U, E, P = u
+	
+	    # Definir α_bar y β_bar
+	    α_bar = α + β / κ
+	    β_bar = β * C1
+	
+	    # Ecuaciones diferenciales
+	    dU = α_bar * P - γ * E + β_bar  # dU/dt
+	    dE = -δ * U                     # dE/dt
+	    dP = ρ * P * (1 - P / (k1 * U - k2 * E))  # dP/dt
+		return [dU, dE, dP]
+	end
+	
+	# Condiciones iniciales y rango de tiempo
+	u0_intuitivo = [U_obs[1], E_obs[1], P_obs[1]]
+	tspan_intuitivo = (t_data[1], t_data[end])
+	
+	# Resolver el sistema
+	prob_int = ODEProblem(modelo_intuitivo, u0_intuitivo, tspan_intuitivo)
+	sol_int = solve(prob_int)
+	
+	# Graficar en 3D
+	plot(sol_int, vars=(1, 2, 3), xlabel="x", ylabel="y", zlabel="z", title="Atractor de Lorenz (Diagrama de fase 3D)", legend=false)
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NumericalIntegration = "e7bfaba1-d571-5449-8927-abc22e82249b"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
@@ -758,6 +1112,9 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 CSV = "~0.10.15"
 DataFrames = "~1.7.0"
 DifferentialEquations = "~7.15.0"
+GLM = "~1.9.0"
+Interpolations = "~0.13.6"
+NumericalIntegration = "~0.3.3"
 Optim = "~1.10.0"
 Plots = "~1.40.9"
 """
@@ -768,7 +1125,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "fafc30d8dedd42dc1be85e425c7e138cb08fb6d3"
+project_hash = "16981757fd72f0b0577c6a566308f7d5f14cdf71"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "30bb95a372787af850addf28ac937f1be7b79173"
@@ -882,6 +1239,12 @@ weakdeps = ["SparseArrays"]
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
+
+[[deps.AxisAlgorithms]]
+deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
+git-tree-sha1 = "66771c8d21c8ff5e3a93379480a2307ac36863f7"
+uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
+version = "1.0.1"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
@@ -1562,6 +1925,12 @@ git-tree-sha1 = "532f9126ad901533af1d4f5c198867227a7bb077"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.4.0+1"
 
+[[deps.GLM]]
+deps = ["Distributions", "LinearAlgebra", "Printf", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns", "StatsModels"]
+git-tree-sha1 = "273bd1cd30768a2fddfa3fd63bbc746ed7249e5f"
+uuid = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+version = "1.9.0"
+
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
 git-tree-sha1 = "ec632f177c0d990e64d955ccc1b8c04c485a0950"
@@ -1683,6 +2052,12 @@ version = "2024.2.1+0"
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 version = "1.11.0"
+
+[[deps.Interpolations]]
+deps = ["AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
+git-tree-sha1 = "b7bc05649af456efc75d178846f47006c2c4c3c7"
+uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+version = "0.13.6"
 
 [[deps.IntervalSets]]
 git-tree-sha1 = "dba9ddf07f77f60450fe5d2e2beb9854d9a49bd0"
@@ -2180,6 +2555,12 @@ git-tree-sha1 = "dc8535cecb0f9d978019e44b7144b9e84ab85424"
 uuid = "5959db7a-ea39-4486-b5fe-2dd0bf03d60d"
 version = "1.0.0"
 
+[[deps.NumericalIntegration]]
+deps = ["Interpolations", "LinearAlgebra", "Logging"]
+git-tree-sha1 = "2a4ef5fc235053f9747d59cfdee19bcb8ba1e833"
+uuid = "e7bfaba1-d571-5449-8927-abc22e82249b"
+version = "0.3.3"
+
 [[deps.OffsetArrays]]
 git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
@@ -2675,6 +3056,16 @@ git-tree-sha1 = "c6ec94d2aaba1ab2ff983052cf6a606ca5985902"
 uuid = "e6cf234a-135c-5ec9-84dd-332b85af5143"
 version = "1.6.0"
 
+[[deps.Ratios]]
+deps = ["Requires"]
+git-tree-sha1 = "1342a47bf3260ee108163042310d26f2be5ec90b"
+uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
+version = "0.4.5"
+weakdeps = ["FixedPointNumbers"]
+
+    [deps.Ratios.extensions]
+    RatiosFixedPointNumbersExt = "FixedPointNumbers"
+
 [[deps.RecipesBase]]
 deps = ["PrecompileTools"]
 git-tree-sha1 = "5c3d09cc4f31f5fc6af001c250bf1278733100ff"
@@ -2859,6 +3250,11 @@ version = "1.1.1"
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
 uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 version = "1.11.0"
+
+[[deps.ShiftedArrays]]
+git-tree-sha1 = "503688b59397b3307443af35cd953a13e8005c16"
+uuid = "1277b4bf-5013-50f5-be3d-901d8477a67a"
+version = "2.0.0"
 
 [[deps.Showoff]]
 deps = ["Dates", "Grisu"]
@@ -3052,6 +3448,12 @@ weakdeps = ["ChainRulesCore", "InverseFunctions"]
     [deps.StatsFuns.extensions]
     StatsFunsChainRulesCoreExt = "ChainRulesCore"
     StatsFunsInverseFunctionsExt = "InverseFunctions"
+
+[[deps.StatsModels]]
+deps = ["DataAPI", "DataStructures", "LinearAlgebra", "Printf", "REPL", "ShiftedArrays", "SparseArrays", "StatsAPI", "StatsBase", "StatsFuns", "Tables"]
+git-tree-sha1 = "9022bcaa2fc1d484f1326eaa4db8db543ca8c66d"
+uuid = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
+version = "0.7.4"
 
 [[deps.SteadyStateDiffEq]]
 deps = ["ConcreteStructs", "DiffEqBase", "DiffEqCallbacks", "LinearAlgebra", "Reexport", "SciMLBase"]
@@ -3305,6 +3707,12 @@ deps = ["DataAPI", "InlineStrings", "Parsers"]
 git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
 version = "1.4.2"
+
+[[deps.WoodburyMatrices]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "5f24e158cf4cee437052371455fe361f526da062"
+uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
+version = "0.5.6"
 
 [[deps.WorkerUtilities]]
 git-tree-sha1 = "cd1659ba0d57b71a464a29e64dbc67cfe83d54e7"
@@ -3617,6 +4025,7 @@ version = "1.4.1+1"
 # ╠═f38eda3e-2c1b-4479-8a6b-c6bba01d3389
 # ╠═24ab24ad-7819-404d-ac67-8388c67c6153
 # ╠═80ff100b-c076-4de2-a7d5-9e2707eb1a6a
+# ╠═e89dbfff-49d5-477f-9da7-a22087dd1469
 # ╟─89c8e7b0-7028-4e14-8dcc-f40e6b2ad87d
 # ╟─951cf7f4-ca9a-4960-810f-da74c24cffea
 # ╟─1e895a64-5352-42ba-a80b-e0ffa0fbdf15
@@ -3636,12 +4045,31 @@ version = "1.4.1+1"
 # ╠═432e31c6-6613-4722-a474-bd8e956cfabc
 # ╠═32298ca6-f2e7-461a-971e-e017be682679
 # ╠═01abb6ec-f709-49cc-b67c-7c3aa1914827
-# ╟─57e123f9-6f95-4603-b40a-a9d648780f28
+# ╠═8657b106-4793-4660-b8e8-35d67dd87741
+# ╠═a3219ce6-dbb1-410f-b10d-2043992d4c2b
+# ╠═6201ed7e-de40-4645-bdc2-f21625083947
+# ╠═f8237f16-5487-4e7b-a5ba-4492a5bba492
+# ╠═9559c629-c11c-49c8-b202-412bad229a22
+# ╠═80d9764f-6d15-4e07-97b1-8c88768bb375
+# ╠═c1963cb7-fcc6-4e6e-a4e2-b69bcfaa9054
+# ╠═063037e9-6b50-4f59-a967-db0efad95444
+# ╠═2dd83b95-ee3f-4e9e-b84c-2193f0389d48
+# ╠═6aa098d5-b6ff-4879-9904-0dce564e2211
+# ╠═4d6747f3-00c7-4ba0-8eca-c8f92b52f2e9
+# ╠═468826d9-b5c1-4d46-9606-0c1e5981575e
+# ╠═b7dc1b7e-a547-473e-aff9-d14a1fcc1fdd
+# ╠═f4d70569-7cab-4ab3-b9a9-03f8e66b42f4
+# ╠═57e123f9-6f95-4603-b40a-a9d648780f28
+# ╠═8804391b-7ea5-4450-a3a2-32f5d0b32934
 # ╟─620c9aa3-68f7-4d4f-8607-c78819ebd487
 # ╟─191e5496-3731-4759-954c-19eeb4d091c3
 # ╟─9f0cab78-1520-48db-ab2f-acd9ccde4e67
 # ╟─f6725e4b-c500-4153-b661-12cd2823a432
 # ╟─4b005a19-254c-490a-ba92-d93790622b3a
 # ╟─2439ca8d-672d-49c6-b8b7-378144aeb8ab
+# ╠═1f5d1836-b9dc-409f-92f1-9db3f40ca4c1
+# ╠═ced04a0c-d6b0-4a2b-aed3-a91a6d66311c
+# ╠═17104d73-26eb-4bbd-8458-9b7cc812fb5f
+# ╠═3138a66d-46a9-48c6-961b-dd54fa7df762
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
